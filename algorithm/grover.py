@@ -54,13 +54,18 @@ def optimal_iterations(n_qubits: int, n_targets: int=1) -> int:
     Optimal number of Grover iterations to get maximum
     probabily of measuring a target state
     """
-    return round(math.pi*math.sqrt(2**n_qubits/n_targets)/4)
+    return round(0.25*math.pi/math.asin(math.sqrt(n_targets/2**n_qubits))-0.5)
 
 
 ##################################################
 # Grover search circuit
 ##################################################
-def grover_circuit(target: typing.Union[list, tuple], source: typing.Union[list, tuple]=None, niter: typing.Union[int, None]=None):
+def grover_circuit(
+    target: typing.Union[list, tuple],
+    source: typing.Union[list, tuple] = None,
+    niter: typing.Union[int, None] = None,
+    measure: bool = True,
+) -> qiskit.QuantumCircuit:
     # number of qubits
     n = len(target)
 
@@ -87,4 +92,7 @@ def grover_circuit(target: typing.Union[list, tuple], source: typing.Union[list,
         grover_op(qc, qreg, source, target)
         
     # measurement
-    qc.measure_all()
+    if measure:
+        qc.measure_all()
+
+    return qc
