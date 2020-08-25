@@ -127,7 +127,7 @@ def exp_real(u: np.matrix, t: typing.SupportsFloat) -> np.matrix:
 
 def exp_imag(u: np.matrix, t: typing.SupportsFloat) -> np.matrix:
     """
-    :param m: unitary matrix
+    :param u: unitary matrix
     :param t: time -- real number
     :return: exp(u*t)
     """

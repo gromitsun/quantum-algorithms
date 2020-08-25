@@ -1,6 +1,5 @@
 import unittest
 import random
-import qiskit
 import math
 import numpy as np
 
