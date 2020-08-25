@@ -4,7 +4,7 @@ import qiskit
 import numpy as np
 
 import algorithm.phase_estimate as pe
-from utils.simulator import get_unitary, get_counts
+from utils.qiskit_utils import get_unitary, get_counts
 from utils.common import int_to_bin
 
 

@@ -4,7 +4,7 @@ import math
 import numpy as np
 
 import algorithm.grover as grover
-from utils.simulator import get_statevector
+from utils.qiskit_utils import get_statevector
 from utils.common import int_to_bin
 
 
