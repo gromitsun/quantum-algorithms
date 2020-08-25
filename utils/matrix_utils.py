@@ -7,31 +7,31 @@ import numpy as np
 ######################################
 # Pauli matrices
 ######################################
-pauli_x = np.matrix([
+pauli_x = np.array([
     [0, 1],
     [1, 0]
 ])
 
 
-pauli_y = np.matrix([
+pauli_y = np.array([
     [0, -1j],
     [1j, 0]
 ])
 
 
-pauli_z = np.matrix([
+pauli_z = np.array([
     [1, 0],
     [0, -1]
 ])
 
 
-ident = np.matrix([
+ident = np.array([
     [1, 0],
     [0, 1]
 ])
 
 
-def ident_n(n: int) -> np.matrix:
+def ident_n(n: int) -> np.array:
     """
     n-qubit identity matrix
     """
@@ -41,22 +41,22 @@ def ident_n(n: int) -> np.matrix:
 ######################################
 # Single-qubit rotations
 ######################################
-def rx(theta: typing.SupportsFloat) -> np.matrix:
-    return np.matrix([
+def rx(theta: typing.SupportsFloat) -> np.array:
+    return np.array([
         [np.cos(theta/2), -1j*np.sin(theta/2)],
         [-1j*np.sin(theta/2), np.cos(theta/2)]
     ])
 
 
-def ry(theta: typing.SupportsFloat) -> np.matrix:
-    return np.matrix([
+def ry(theta: typing.SupportsFloat) -> np.array:
+    return np.array([
         [np.cos(theta/2), -np.sin(theta/2)],
         [-np.sin(theta/2), np.cos(theta/2)]
     ])
 
 
-def rz(theta: typing.SupportsFloat) -> np.matrix:
-    return np.matrix([
+def rz(theta: typing.SupportsFloat) -> np.array:
+    return np.array([
         [1, 0],
         [0, np.exp(1j*theta)]
     ])
@@ -65,7 +65,7 @@ def rz(theta: typing.SupportsFloat) -> np.matrix:
 ######################################
 # Derived gates / matrix operations
 ######################################
-def kron_power(m: np.matrix, n: int) -> np.matrix:
+def kron_power(m: np.array, n: int) -> np.array:
     """
     :param m: matrix
     :param n: positive integer
@@ -85,14 +85,14 @@ def kron_power(m: np.matrix, n: int) -> np.matrix:
     return prod
 
 
-def mcu(u: np.matrix, n: int, i: int = -1) -> np.matrix:
+def mcu(u: np.array, n: int, i: int = -1) -> np.array:
     """
     Multi-controlled-U operator
     :param u: single-qubit (2x2) unitary matrix
     :param n: total number of qubits
     :param i: (optional) target qubit (0-based index)
     :return: matrix representation of multi-controlled-U operator
-        targetted on the i-th qubit
+        targeted on the i-th qubit
     """
     # handle negative i
     if i < 0:
@@ -116,16 +116,16 @@ def mcu(u: np.matrix, n: int, i: int = -1) -> np.matrix:
     return _mcu_recursive(u, n, i)
 
     
-def exp_real(u: np.matrix, t: typing.SupportsFloat) -> np.matrix:
+def exp_real(u: np.array, t: typing.SupportsFloat) -> np.array:
     """
-    :param m: unitary matrix
+    :param u: unitary matrix
     :param t: time -- real number
     :return: exp(i*u*t)
     """
     return np.cos(t)*ident_n(u.shape[0]) + 1j*np.sin(t)*u
 
 
-def exp_imag(u: np.matrix, t: typing.SupportsFloat) -> np.matrix:
+def exp_imag(u: np.array, t: typing.SupportsFloat) -> np.array:
     """
     :param u: unitary matrix
     :param t: time -- real number
@@ -135,9 +135,9 @@ def exp_imag(u: np.matrix, t: typing.SupportsFloat) -> np.matrix:
 
 
 def partial_trace(
-    m: np.matrix,
+    m: np.array,
     i: typing.Union[int, typing.Sequence[int]]
-) -> typing.Union[typing.SupportsComplex, np.matrix]:
+) -> typing.Union[typing.SupportsComplex, np.array]:
     """
     Take partial trace of a density matrix on the i-th qubits (0-based indices)
     """
