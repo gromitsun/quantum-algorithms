@@ -12,7 +12,7 @@ def fft_by_qft(x, inverse=False, use_classical_swaps=False):
     inverse = not inverse
     # number of qubits
     n = int(np.log2(len(x)))
-    assert len(x) == 2**n
+    assert len(x) == 2**n, "Length of x should be a power of 2"
     # construct circuit
     qreg = qiskit.QuantumRegister(n)
     qc = qiskit.QuantumCircuit(qreg)
