@@ -41,9 +41,9 @@ def qft(
                 # Handle classically known input
                 if classical_input[k+i+1] == 1:
                     circuit.u1(sign * math.pi / 2 ** (k + 1), control, target)
-                else:
-                    # Full QFT
-                    circuit.cu1(sign * math.pi / 2 ** (k + 1), control, target)
+            else:
+                # Full QFT
+                circuit.cu1(sign * math.pi / 2 ** (k + 1), control, target)
 
     # swap qubits -- forward QFT
     if do_swaps and not inverse:
