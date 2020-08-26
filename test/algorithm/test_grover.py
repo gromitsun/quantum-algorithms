@@ -37,7 +37,7 @@ class GroverTest(unittest.TestCase):
         self.assertAlmostEqual(abs(max_amplitude), math.sin((2*n_iters+1)*theta))
 
     def test_grover_search_random(self):
-        n_qubits = random.randint(1, 7)
+        n_qubits = random.randint(2, 8)
         # good state binary string (small-endian)
         good_state_int = random.randint(0, 2**n_qubits-1)
         good_state_str = int_to_bin(good_state_int, n_bits=n_qubits)
@@ -64,7 +64,10 @@ class GroverTest(unittest.TestCase):
         # check amplitude
         n_iters = grover.optimal_iterations(n_qubits=n_qubits)
         theta = math.asin(1/math.sqrt(2**n_qubits))
-        self.assertAlmostEqual(abs(max_amplitude), math.sin((2*n_iters+1)*theta), msg='Maximum amplitude does not match expected: ' + msg)
+        self.assertAlmostEqual(
+            abs(max_amplitude), math.sin((2*n_iters+1)*theta),
+            msg='Maximum amplitude does not match expected: ' + msg
+        )
 
 
 if __name__ == '__main__':
