@@ -18,7 +18,8 @@ def get_counts(circuit: qiskit.QuantumCircuit, shots: typing.Union[int, None] = 
 
 
 def sv_to_prob(sv: np.ndarray) -> dict:
-    return {int_to_bin(i): v * v.conjugate() for i, v in enumerate(sv)}
+    n = int(np.log2(len(sv)))
+    return {int_to_bin(i, n_bits=n): (v * v.conjugate()).real for i, v in enumerate(sv)}
 
 
 def get_probabilities(circuit: qiskit.QuantumCircuit) -> dict:
