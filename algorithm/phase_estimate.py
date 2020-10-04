@@ -1,5 +1,6 @@
-import typing
 import math
+import typing
+
 import qiskit
 
 from algorithm.qft import qft
@@ -8,26 +9,26 @@ from utils.common import int_to_bin
 
 def cphase_operator(scaled_phase: float):
     """Unitary operator adding a phase to one qubit"""
-    phase = 2*math.pi*scaled_phase
+    phase = 2 * math.pi * scaled_phase
 
     def _operator(
-        circuit: qiskit.QuantumCircuit,
-        n: int,  # number of applications of this operator
-        control:qiskit.QuantumRegister,
-        target: qiskit.QuantumRegister,
+            circuit: qiskit.QuantumCircuit,
+            n: int,  # number of applications of this operator
+            control: qiskit.QuantumRegister,
+            target: qiskit.QuantumRegister,
     ) -> None:
-        circuit.cu1(phase*n, control, target)
+        circuit.cu1(phase * n, control, target)
 
     return _operator
-    
+
 
 def phase_estimate(
-    circuit: qiskit.QuantumCircuit, 
-    qreg_out: qiskit.QuantumRegister, 
-    qreg_ancilla: qiskit.QuantumRegister, 
-    c_op,  # controlled-U operator
-    measure: bool = True,
-    creg: typing.Union[None, qiskit.ClassicalRegister] = None,
+        circuit: qiskit.QuantumCircuit,
+        qreg_out: qiskit.QuantumRegister,
+        qreg_ancilla: qiskit.QuantumRegister,
+        c_op,  # controlled-U operator
+        measure: bool = True,
+        creg: typing.Union[None, qiskit.ClassicalRegister] = None,
 ) -> None:
     """
     Quantum phase estimation
@@ -37,8 +38,8 @@ def phase_estimate(
 
     # apply controlled-U
     for k, control in enumerate(qreg_out):
-        c_op(circuit, 2**k, control, qreg_ancilla)
-        
+        c_op(circuit, 2 ** k, control, qreg_ancilla)
+
     # reverse qubits
     # swap_qubits(qc, qout)
     qreg_out = qreg_out[::-1]
@@ -63,7 +64,7 @@ def frac_bin_to_decimal(bin_str: str) -> float:
     Convert binary fractional number (str) to decimal
     Most significant bit first (small endian) -- as in qiskit result output
     """
-    return sum((bit == '1') and 1/(2**k) for k, bit in enumerate(bin_str, start=1))
+    return sum((bit == '1') and 1 / (2 ** k) for k, bit in enumerate(bin_str, start=1))
 
 
 def decimal_to_frac_bin(dec: float, n_bits: int) -> str:
@@ -79,9 +80,9 @@ def decimal_to_frac_bin(dec: float, n_bits: int) -> str:
         bit = int(dec)
         res = (res << 1) | bit
         dec -= bit
-    
+
     # rounding
     if dec >= 0.5:
         res += 1
-    
+
     return int_to_bin(res, n_bits=n_bits)

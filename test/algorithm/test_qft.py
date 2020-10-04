@@ -1,9 +1,10 @@
 import unittest
+
 import numpy as np
 import qiskit
 
-import utils.qiskit_utils
 import algorithm.qft as qft
+import utils.qiskit_utils
 
 
 # Do FFT
@@ -12,7 +13,7 @@ def fft_by_qft(x, inverse=False, use_classical_swaps=False):
     inverse = not inverse
     # number of qubits
     n = int(np.log2(len(x)))
-    assert len(x) == 2**n, "Length of x should be a power of 2"
+    assert len(x) == 2 ** n, "Length of x should be a power of 2"
     # construct circuit
     qreg = qiskit.QuantumRegister(n)
     qc = qiskit.QuantumCircuit(qreg)
@@ -46,7 +47,7 @@ def normalize(x):
 
 class TestQFT(unittest.TestCase):
     def test_qft(self):
-        x = [1, 2-1j, -1j, -1+2j]
+        x = [1, 2 - 1j, -1j, -1 + 2j]
         x = normalize(x)
 
         print("Input: %s" % x)

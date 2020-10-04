@@ -1,5 +1,6 @@
-import typing
 import math
+import typing
+
 import numpy as np
 import qiskit
 
@@ -37,9 +38,9 @@ def qft(
     for i, target in enumerate(qreg):
         circuit.h(target)
         for k, control in enumerate(qreg[i + 1:]):
-            if classical_input and classical_input[k+i+1] is not None:
+            if classical_input and classical_input[k + i + 1] is not None:
                 # Handle classically known input
-                if classical_input[k+i+1] == 1:
+                if classical_input[k + i + 1] == 1:
                     circuit.u1(sign * math.pi / 2 ** (k + 1), control, target)
             else:
                 # Full QFT

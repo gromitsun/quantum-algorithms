@@ -1,5 +1,6 @@
-import typing
 import math
+import typing
+
 import qiskit
 
 

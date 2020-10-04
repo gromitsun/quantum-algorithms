@@ -1,11 +1,12 @@
-import unittest
 import random
-import qiskit
+import unittest
+
 import numpy as np
+import qiskit
 
 import algorithm.phase_estimate as pe
-from utils.qiskit_utils import get_unitary, get_counts
 from utils.common import int_to_bin
+from utils.qiskit_utils import get_unitary, get_counts
 
 
 class PhaseEstimateTest(unittest.TestCase):
@@ -23,7 +24,7 @@ class PhaseEstimateTest(unittest.TestCase):
             # unitary matrix from circuit
             u_op = get_unitary(qc)
             # expected unitary matrix
-            u_exp = np.diag([1, 1, 1, np.exp(2j*np.pi*phase*n)])
+            u_exp = np.diag([1, 1, 1, np.exp(2j * np.pi * phase * n)])
 
             np.testing.assert_array_almost_equal(
                 u_op, u_exp,
@@ -56,7 +57,7 @@ class PhaseEstimateTest(unittest.TestCase):
 
         # check result
         self.assertEqual(state, pe.decimal_to_frac_bin(phase, n_bits=n_qubits))
-        self.assertGreater(count, 0.5*shots)
+        self.assertGreater(count, 0.5 * shots)
 
     def test_frac_bin_convert_from_bin(self):
         n_bits = 50
