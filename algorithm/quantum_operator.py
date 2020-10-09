@@ -4,24 +4,7 @@ import itertools
 
 import qiskit
 
-from utils.qiskit_utils import QuantumRegisterType, create_circuit
-
-
-class QubitIterator(object):
-    def __init__(self, *qregs:QuantumRegisterType):
-        self._qregs = qregs
-        self._qubits = itertools.chain(*qregs)
-
-    @property
-    def qregs(self):
-        return self._qregs
-
-    def get(self, n: typing.Optional[int] = None):
-        if n is None:
-            # return a list of all qubits
-            return list(self._qubits)
-        # return a list of n qubits
-        return [next(self._qubits) for _ in range(n)]
+from utils.qiskit_utils import QuantumRegisterType, create_circuit, QubitIterator
 
 
 class QuantumOperator(object):

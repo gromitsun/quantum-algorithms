@@ -1,4 +1,5 @@
 import typing
+import itertools
 
 import numpy as np
 import qiskit
@@ -94,3 +95,20 @@ def create_circuit(*qregs: QuantumRegisterType):
             raise TypeError("Expected QuantumRegister or sequence of Qubits, got %s", type(qreg))
 
     return qiskit.QuantumCircuit(*_qregs)
+
+
+class QubitIterator(object):
+    def __init__(self, *qregs: QuantumRegisterType):
+        self._qregs = qregs
+        self._qubits = itertools.chain(*qregs)
+
+    @property
+    def qregs(self):
+        return self._qregs
+
+    def get(self, n: typing.Optional[int] = None):
+        if n is None:
+            # return a list of all qubits
+            return list(self._qubits)
+        # return a list of n qubits
+        return [next(self._qubits) for _ in range(n)]
