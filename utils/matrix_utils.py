@@ -39,25 +39,29 @@ def ident_n(n: int) -> np.array:
 ######################################
 # Single-qubit rotations
 ######################################
-def rx(theta: typing.SupportsFloat) -> np.array:
+def rx(theta: float) -> np.array:
     return np.array([
         [np.cos(theta / 2), -1j * np.sin(theta / 2)],
         [-1j * np.sin(theta / 2), np.cos(theta / 2)]
     ])
 
 
-def ry(theta: typing.SupportsFloat) -> np.array:
+def ry(theta: float) -> np.array:
     return np.array([
         [np.cos(theta / 2), -np.sin(theta / 2)],
         [-np.sin(theta / 2), np.cos(theta / 2)]
     ])
 
 
-def rz(theta: typing.SupportsFloat) -> np.array:
+def rz(theta: float) -> np.array:
     return np.array([
         [1, 0],
         [0, np.exp(1j * theta)]
     ])
+
+
+def u1(theta: float) -> np.array:
+    return np.diag([1, np.exp(1j * theta)])
 
 
 ######################################
@@ -81,6 +85,17 @@ def kron_power(m: np.array, n: int) -> np.array:
     if n % 2 == 1:
         prod = np.kron(m, prod)
     return prod
+
+
+def kron(*matrices: typing.Sequence[np.array]) -> np.array:
+    """
+    Compute Kronecker product of matrices
+    :param matrices: matrices
+    :return: Kronecker product
+    """
+    if len(matrices) == 1:
+        return matrices[0]
+    return np.kron(matrices[0], kron(*matrices[1:]))
 
 
 def mcu(u: np.array, n: int, i: int = -1) -> np.array:
@@ -123,7 +138,7 @@ def exp_real(u: np.array, t: typing.SupportsFloat) -> np.array:
     return np.cos(t) * ident_n(u.shape[0]) + 1j * np.sin(t) * u
 
 
-def exp_imag(u: np.array, t: typing.SupportsFloat) -> np.array:
+def exp_imag(u: np.array, t: float) -> np.array:
     """
     :param u: unitary matrix
     :param t: time -- real number
@@ -150,3 +165,20 @@ def partial_trace(
         m.reshape(n_pre, 2, n_post, n_pre, 2, n_post),
         axis1=1, axis2=4
     ).reshape(n_state / 2, n_state / 2)
+
+
+# --------------- QFT --------------- #
+def qft_matrix(n):
+    nn = 2 ** n
+    u = np.array([
+        [np.exp(2j * np.pi * i * k / nn) for i in range(nn)]
+        for k in range(nn)
+    ]) / np.sqrt(nn)
+    return u
+
+
+def qft_shift_matrix(n, shift):
+    u = 1
+    for k in range(n):
+        u = np.kron(u1(2 * np.pi * 2 ** (k - n) * shift), u)
+    return u

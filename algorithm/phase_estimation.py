@@ -8,7 +8,10 @@ from utils.common import int_to_bin
 
 
 def cphase_operator(scaled_phase: float):
-    """Unitary operator adding a phase to one qubit"""
+    """
+    Return a controlled phase (U1) operator parametrized by
+    the number of repeated applications of this operator
+    """
     phase = 2 * math.pi * scaled_phase
 
     def _operator(
@@ -27,11 +30,18 @@ def phase_estimate(
         qreg_out: qiskit.QuantumRegister,
         qreg_ancilla: qiskit.QuantumRegister,
         c_op,  # controlled-U operator
-        measure: bool = True,
-        creg: typing.Union[None, qiskit.ClassicalRegister] = None,
-) -> None:
+        measure: typing.Optional[bool] = True,
+        creg: typing.Optional[qiskit.ClassicalRegister] = None,
+) -> qiskit.QuantumCircuit:
     """
     Quantum phase estimation
+    :param circuit: QuantumCircuit object
+    :param qreg_out: output quantum register
+    :param qreg_ancilla: target register on which the U operator is applied
+    :param c_op: controlled-U operator
+    :param measure: (optional) if True, measure the output qubits at the end
+    :param creg: (optional) classical register for measurement results
+    :return: Quantum circuit
     """
     # initialize output qubits to equal superposition
     list(map(circuit.h, qreg_out))
@@ -54,6 +64,8 @@ def phase_estimate(
             circuit.add_register(creg)
         for qbit, cbit in zip(qreg_out, creg):
             circuit.measure(qbit, cbit)
+
+    return circuit
 
 
 ##################################################

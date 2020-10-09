@@ -33,7 +33,7 @@ class GroverTest(unittest.TestCase):
         self.assertEqual(max_prob_state, good_state_str)
 
         # check amplitude
-        n_iters = grover.optimal_iterations(n_qubits=n_qubits)
+        n_iters = grover.optimal_iterations(num_qubits=n_qubits)
         theta = math.asin(1 / math.sqrt(2 ** n_qubits))
         self.assertAlmostEqual(abs(max_amplitude), math.sin((2 * n_iters + 1) * theta))
 
@@ -63,7 +63,7 @@ class GroverTest(unittest.TestCase):
         self.assertEqual(max_prob_state, good_state_str, msg='Most probable state does not match input: ' + msg)
 
         # check amplitude
-        n_iters = grover.optimal_iterations(n_qubits=n_qubits)
+        n_iters = grover.optimal_iterations(num_qubits=n_qubits)
         theta = math.asin(1 / math.sqrt(2 ** n_qubits))
         self.assertAlmostEqual(
             abs(max_amplitude), math.sin((2 * n_iters + 1) * theta),

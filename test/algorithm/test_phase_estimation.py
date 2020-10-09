@@ -4,7 +4,7 @@ import unittest
 import numpy as np
 import qiskit
 
-import algorithm.phase_estimate as pe
+import algorithm.phase_estimation as pe
 from utils.common import int_to_bin
 from utils.qiskit_utils import get_unitary, get_counts
 
