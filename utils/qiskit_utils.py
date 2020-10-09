@@ -78,7 +78,7 @@ def get_inverse(op):
 QuantumRegisterType = typing.Union[qiskit.QuantumRegister, typing.Sequence[qiskit.circuit.Qubit]]
 
 
-def create_circuit(*qregs: QuantumRegisterType):
+def create_circuit(*qregs: QuantumRegisterType, name: typing.Optional[str] = None) -> qiskit.QuantumCircuit:
     _qregs = []
 
     for qreg in qregs:
@@ -94,7 +94,13 @@ def create_circuit(*qregs: QuantumRegisterType):
         else:
             raise TypeError("Expected QuantumRegister or sequence of Qubits, got %s", type(qreg))
 
-    return qiskit.QuantumCircuit(*_qregs)
+    return qiskit.QuantumCircuit(*_qregs, name=name)
+
+
+def create_register(num_qubits: int, name: typing.Optional[str] = None) -> QuantumRegisterType:
+    if num_qubits <= 0:
+        return []
+    return qiskit.QuantumRegister(num_qubits, name=name)
 
 
 class QubitIterator(object):

@@ -41,16 +41,21 @@ class AmplitudeEstimation(QuantumOperator):
             num_output_qubits: int,
             name: typing.Optional[str] = 'AmplitudeEstimation',
     ):
+        super().__init__(name=name)
+        self._a_op = a_op
+        self._q_op = q_op
         self._num_output_qubits = num_output_qubits
-        state_reg = qiskit.QuantumRegister(q_op.num_target_qubits, name='state')
-        output_reg = qiskit.QuantumRegister(num_output_qubits, name='output')
-        circuit = qiskit.QuantumCircuit(state_reg, output_reg, name=name)
+
+    def build_circuit(self) -> qiskit.QuantumCircuit:
+        state_reg = qiskit.QuantumRegister(self._q_op.num_target_qubits, name='state')
+        output_reg = qiskit.QuantumRegister(self.num_output_qubits, name='output')
+        circuit = qiskit.QuantumCircuit(state_reg, output_reg, name=self.name)
 
         # reverse qubits
         output_reg = output_reg[::-1]
 
         # apply A operator
-        a_op(circuit, state_reg)
+        self._a_op(circuit, state_reg)
 
         # apply Hadamard on output register
         circuit.h(output_reg)
@@ -58,7 +63,7 @@ class AmplitudeEstimation(QuantumOperator):
         # apply controlled-Q operator
         for k, q in enumerate(output_reg):
             for _ in range(2**k):
-                q_op(circuit, q, state_reg)
+                self._q_op(circuit, q, state_reg)
 
         # reverse qubits
         output_reg = output_reg[::-1]
@@ -66,7 +71,9 @@ class AmplitudeEstimation(QuantumOperator):
         # apply inverse QFT
         qft(circuit, output_reg, do_swaps=False, inverse=True)
 
-        super().__init__(circuit)
+        self.set_circuit(circuit)
+
+        return circuit
 
     @property
     def num_output_qubits(self):
