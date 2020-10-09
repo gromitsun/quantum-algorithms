@@ -367,10 +367,10 @@ class ControlledGroverIterate(ControlledOperator):
         else:
             circuit.mcu1(math.pi, control_reg[:-1], control_reg[-1])
 
-        self._oracle(circuit, control_reg, target_reg)
-        self._a_op.apply_inverse(circuit, target_reg)
-        self._rs_op(circuit, control_reg, target_reg)
-        self._a_op(circuit, target_reg)
+        self._oracle(circuit, control_reg, target_reg, ancilla_reg)
+        self._a_op.apply_inverse(circuit, target_reg, ancilla_reg)
+        self._rs_op(circuit, control_reg, target_reg, ancilla_reg)
+        self._a_op(circuit, target_reg, ancilla_reg)
 
         self.set_circuit(circuit)
 
