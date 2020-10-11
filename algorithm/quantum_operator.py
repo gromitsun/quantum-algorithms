@@ -151,6 +151,36 @@ class SegmentedOperator(QuantumOperator, ABC):
     def segment_sizes(self):
         return self._segment_sizes
 
+    def _parse_input_qregs(
+            self,
+            *qregs: QuantumRegisterType,
+            **named_qregs: QuantumRegisterType,
+    ) -> typing.Dict[str, QuantumRegisterType]:
+        """
+        Parse input qregs for apply / apply_inverse
+        :param qregs: positional input qregs
+        :param named_qregs: named input qregs
+        :return: dict of quantum register segments
+        """
+
+        qregs_iter = iter(qregs)
+
+        # quantum register segments to be passed to the get_circuit method
+        qreg_segments = {}
+
+        for seg_name, seg_size in zip(self.segment_names, self.segment_sizes):
+            if seg_size == 0:
+                continue
+            # get register from named qregs
+            qreg = named_qregs.get(seg_name)
+            # get register from positional qregs
+            if qreg is None:
+                qreg = next(qregs_iter)
+
+            qreg_segments[seg_name] = qreg
+
+        return qreg_segments
+
     def get_segment_size(self, name: str) -> int:
         return self.segment_sizes[self.segment_names.index(name)]
 
@@ -163,6 +193,10 @@ class SegmentedOperator(QuantumOperator, ABC):
             qreg_segments: typing.Optional[typing.Dict[str, QuantumRegisterType]] = None,
             inv: typing.Optional[bool] = False,
     ) -> qiskit.QuantumCircuit:
+
+        if qreg_segments is None:
+            qreg_segments = {}
+
         # Qubit iterator on the qubits of the input circuit
         qubits = QubitIterator(*circuit.qregs) if circuit is not None else None
 
@@ -194,6 +228,24 @@ class SegmentedOperator(QuantumOperator, ABC):
             _qregs.append(qreg)
 
         return super().get_circuit(circuit, _qregs, inv=inv)
+
+    def apply(
+            self,
+            circuit: qiskit.QuantumCircuit,
+            *qregs: QuantumRegisterType,
+            **named_qregs: QuantumRegisterType
+    ) -> qiskit.QuantumCircuit:
+        qreg_segments = self._parse_input_qregs(*qregs, **named_qregs)
+        return self.get_circuit(circuit, qreg_segments)
+
+    def apply_inverse(
+            self,
+            circuit: qiskit.QuantumCircuit,
+            *qregs: QuantumRegisterType,
+            **named_qregs: QuantumRegisterType,
+    ) -> qiskit.QuantumCircuit:
+        qreg_segments = self._parse_input_qregs(*qregs, **named_qregs)
+        return self.get_circuit(circuit, qreg_segments, inv=True)
 
 
 class SimpleOperator(SegmentedOperator, ABC):
@@ -228,36 +280,6 @@ class SimpleOperator(SegmentedOperator, ABC):
     @property
     def ancilla_qubits(self):
         return self.get_segment_qubits('ancilla')
-
-    def get_circuit(
-            self,
-            circuit: typing.Optional[qiskit.QuantumCircuit] = None,
-            target_qubits: typing.Optional[QuantumRegisterType] = None,
-            ancilla_qubits: typing.Optional[QuantumRegisterType] = None,
-            inv: typing.Optional[bool] = False,
-    ) -> qiskit.QuantumCircuit:
-
-        qregs = {
-            'target': target_qubits,
-            'ancilla': ancilla_qubits,
-        }
-        return super().get_circuit(circuit, qregs, inv=inv)
-
-    def apply(
-            self,
-            circuit: typing.Optional[qiskit.QuantumCircuit] = None,
-            target_qubits: typing.Optional[QuantumRegisterType] = None,
-            ancilla_qubits: typing.Optional[QuantumRegisterType] = None,
-    ) -> qiskit.QuantumCircuit:
-        return self.get_circuit(circuit, target_qubits, ancilla_qubits)
-
-    def apply_inverse(
-            self,
-            circuit: typing.Optional[qiskit.QuantumCircuit] = None,
-            target_qubits: typing.Optional[QuantumRegisterType] = None,
-            ancilla_qubits: typing.Optional[QuantumRegisterType] = None,
-    ) -> qiskit.QuantumCircuit:
-        return self.get_circuit(circuit, target_qubits, ancilla_qubits, inv=True)
 
 
 class ControlledOperator(SegmentedOperator, ABC):
@@ -301,37 +323,3 @@ class ControlledOperator(SegmentedOperator, ABC):
     @property
     def ancilla_qubits(self):
         return self.get_segment_qubits('ancilla')
-
-    def get_circuit(
-            self,
-            circuit: typing.Optional[qiskit.QuantumCircuit] = None,
-            control_qubits: typing.Optional[QuantumRegisterType] = None,
-            target_qubits: typing.Optional[QuantumRegisterType] = None,
-            ancilla_qubits: typing.Optional[QuantumRegisterType] = None,
-            inv: typing.Optional[bool] = False,
-    ) -> qiskit.QuantumCircuit:
-
-        qregs = {
-            'control': control_qubits,
-            'target': target_qubits,
-            'ancilla': ancilla_qubits,
-        }
-        return super().get_circuit(circuit, qregs, inv=inv)
-
-    def apply(
-            self,
-            circuit: typing.Optional[qiskit.QuantumCircuit] = None,
-            control_qubits: typing.Optional[QuantumRegisterType] = None,
-            target_qubits: typing.Optional[QuantumRegisterType] = None,
-            ancilla_qubits: typing.Optional[QuantumRegisterType] = None,
-    ) -> qiskit.QuantumCircuit:
-        return self.get_circuit(circuit, control_qubits, target_qubits, ancilla_qubits)
-
-    def apply_inverse(
-            self,
-            circuit: typing.Optional[qiskit.QuantumCircuit] = None,
-            control_qubits: typing.Optional[QuantumRegisterType] = None,
-            target_qubits: typing.Optional[QuantumRegisterType] = None,
-            ancilla_qubits: typing.Optional[QuantumRegisterType] = None,
-    ) -> qiskit.QuantumCircuit:
-        return self.get_circuit(circuit, control_qubits, target_qubits, ancilla_qubits, inv=True)

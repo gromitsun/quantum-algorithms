@@ -103,9 +103,11 @@ class Oracle(QuantumOperator, ABC):
     def __init__(
             self,
             target_state: typing.Union[typing.Sequence[int], typing.Sequence[typing.Sequence[int]]],
+            reverse: bool = False,
             name: typing.Optional[str] = 'Oracle',
     ):
         super().__init__(name=name)
+        self._reverse = reverse
 
         assert len(target_state) > 0
         if isinstance(target_state[0], int):
@@ -117,6 +119,10 @@ class Oracle(QuantumOperator, ABC):
         assert len(set(''.join(str(x) for x in state) for state in self.target_states)) == len(self.target_states)
 
         self._num_state_qubits = len(self.target_states[0])
+
+    @property
+    def reverse(self):
+        return self._reverse
 
     @property
     def num_state_qubits(self):
@@ -167,9 +173,10 @@ class PhaseOracle(Oracle):
             self,
             target_state: typing.Union[typing.Sequence[int], typing.Sequence[typing.Sequence[int]]],
             phase: float = math.pi,
+            reverse: bool = False,
             name: typing.Optional[str] = 'PhaseOracle',
     ):
-        super().__init__(target_state, name=name)
+        super().__init__(target_state, reverse=reverse,  name=name)
         self._phase = phase
 
     @property
