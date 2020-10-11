@@ -38,11 +38,11 @@ class InitializeSourceOperator(SimpleOperator):
     def state_vector(self):
         return self._state_vector
 
-    def build_circuit(self) -> qiskit.QuantumCircuit:
+    def _build_internal_circuit(self) -> qiskit.QuantumCircuit:
         # Construct source state from all zero state
         circuit = qiskit.aqua.circuits.StateVectorCircuit(self.state_vector).construct_circuit()
 
-        self.set_circuit(circuit)
+        self._set_internal_circuit(circuit)
 
         return circuit
 
@@ -87,14 +87,14 @@ class DiffusionOperator(SimpleOperator):
     def source_state_vector(self):
         return self._source_state_vector
 
-    def build_circuit(self) -> qiskit.QuantumCircuit:
+    def _build_internal_circuit(self) -> qiskit.QuantumCircuit:
         # Reverse init source op
         circuit = qiskit.aqua.circuits.StateVectorCircuit(self.source_state_vector).construct_circuit().inverse()
 
         # Prepare desired state specified by sv
         circuit = qiskit.aqua.circuits.StateVectorCircuit(self.state_vector).construct_circuit(circuit)
 
-        self.set_circuit(circuit)
+        self._set_internal_circuit(circuit)
 
         return circuit
 
@@ -183,7 +183,7 @@ class PhaseOracle(Oracle):
     def phase(self):
         return self._phase
 
-    def build_circuit(self) -> qiskit.QuantumCircuit:
+    def _build_internal_circuit(self) -> qiskit.QuantumCircuit:
         state_reg = qiskit.QuantumRegister(self.num_state_qubits)
         circuit = qiskit.QuantumCircuit(state_reg, name=self.name)
 
@@ -200,7 +200,7 @@ class PhaseOracle(Oracle):
             if not bit:
                 circuit.x(q)
 
-        self.set_circuit(circuit)
+        self._set_internal_circuit(circuit)
 
         return circuit
 
@@ -226,7 +226,7 @@ class ControlledPhaseOracle(ControlledOracle):
     def reverse(self):
         return self._reverse
 
-    def build_circuit(self) -> qiskit.QuantumCircuit:
+    def _build_internal_circuit(self) -> qiskit.QuantumCircuit:
         control_reg = qiskit.QuantumRegister(self.num_control_qubits, name='control')
         state_reg = qiskit.QuantumRegister(self.num_state_qubits, name='target')
         circuit = qiskit.QuantumCircuit(control_reg, state_reg, name=self.name)
@@ -244,7 +244,7 @@ class ControlledPhaseOracle(ControlledOracle):
             if not bit:
                 circuit.x(q)
 
-        self.set_circuit(circuit)
+        self._set_internal_circuit(circuit)
 
         return circuit
 
@@ -263,7 +263,7 @@ class BooleanOracle(Oracle):
     def reverse(self):
         return self._reverse
 
-    def build_circuit(self) -> qiskit.QuantumCircuit:
+    def _build_internal_circuit(self) -> qiskit.QuantumCircuit:
         state_reg = qiskit.QuantumRegister(self.num_state_qubits)
         output_reg = qiskit.QuantumRegister(1)
         circuit = qiskit.QuantumCircuit(state_reg, output_reg, name=self.name)
@@ -285,7 +285,7 @@ class BooleanOracle(Oracle):
         if self.reverse:
             circuit.x(output_reg)
 
-        self.set_circuit(circuit)
+        self._set_internal_circuit(circuit)
 
         return circuit
 
@@ -300,7 +300,7 @@ class BooleanOracle(Oracle):
         circuit.h(output_reg)
         circuit.cx(control_reg, output_reg)
         ret = ControlledOracle(self.target_states, num_control_qubits=1, num_ancilla_qubits=1)
-        ret.set_circuit(circuit)
+        ret._set_internal_circuit(circuit)
         return ret
 
     def to_phase_oracle(self) -> Oracle:
@@ -313,7 +313,7 @@ class BooleanOracle(Oracle):
         circuit.h(output_reg)
         circuit.x(output_reg)
         ret = Oracle(self.target_states)
-        ret.set_circuit(circuit)
+        ret._set_internal_circuit(circuit)
         return ret
 
 
@@ -330,7 +330,7 @@ class GroverIterate(SimpleOperator):
         self._rs_op = rs_op
         self._oracle = oracle
 
-    def build_circuit(self) -> qiskit.QuantumCircuit:
+    def _build_internal_circuit(self) -> qiskit.QuantumCircuit:
         qreg = qiskit.QuantumRegister(self._oracle.num_qubits)
         circuit = qiskit.QuantumCircuit(qreg, name=self.name)
 
@@ -339,7 +339,7 @@ class GroverIterate(SimpleOperator):
         self._rs_op(circuit, qreg)
         self._a_op(circuit, qreg)
 
-        self.set_circuit(circuit)
+        self._set_internal_circuit(circuit)
 
         return circuit
 
@@ -366,7 +366,7 @@ class ControlledGroverIterate(ControlledOperator):
         self._rs_op = rs_op
         self._oracle = oracle
 
-    def build_circuit(self) -> qiskit.QuantumCircuit:
+    def _build_internal_circuit(self) -> qiskit.QuantumCircuit:
         control_reg = create_register(self.num_control_qubits, name='control')
         target_reg = create_register(self.num_target_qubits, name='target')
         ancilla_reg = create_register(self.num_ancilla_qubits, name='ancilla')
@@ -383,7 +383,7 @@ class ControlledGroverIterate(ControlledOperator):
         self._rs_op(circuit, control_reg, target_reg, ancilla_reg)
         self._a_op(circuit, target_reg, ancilla_reg)
 
-        self.set_circuit(circuit)
+        self._set_internal_circuit(circuit)
 
         return circuit
 

@@ -21,22 +21,22 @@ class QuantumOperator(ABC):
 
     @property
     def num_qubits(self) -> int:
-        return self.get_internal_circuit().num_qubits
+        return self._get_internal_circuit().num_qubits
 
     @property
     def qregs(self) -> typing.List[qiskit.QuantumRegister]:
-        return self.get_internal_circuit().qregs
+        return self._get_internal_circuit().qregs
 
     @property
     def name(self):
         return self._name
 
-    def get_internal_circuit(self):
+    def _get_internal_circuit(self):
         if self._circuit is None:
-            self.build_circuit()
+            self._build_internal_circuit()
         return self._circuit
 
-    def set_circuit(self, circuit) -> None:
+    def _set_internal_circuit(self, circuit) -> None:
         self._circuit = circuit
         # Get name from circuit
         if self.name is None:
@@ -46,9 +46,9 @@ class QuantumOperator(ABC):
             circuit.name = self.name
 
     def draw(self, *args, **kwargs):
-        return self.get_internal_circuit().draw(*args, **kwargs)
+        return self._get_internal_circuit().draw(*args, **kwargs)
 
-    def build_circuit(self) -> qiskit.QuantumCircuit:
+    def _build_internal_circuit(self) -> qiskit.QuantumCircuit:
         raise NotImplementedError("Abstract class")
 
     def get_circuit(
@@ -76,7 +76,7 @@ class QuantumOperator(ABC):
             raise RuntimeError('Register provided has insufficient length (%d < %d)', len(qubits), self.num_qubits)
 
         # Circuit for this operator
-        _circuit = self.get_internal_circuit()
+        _circuit = self._get_internal_circuit()
 
         # Inverse?
         if inv:
@@ -124,8 +124,8 @@ class SegmentedOperator(QuantumOperator, ABC):
         self._segment_names = segment_names
         self._segment_qubits = None
 
-    def set_circuit(self, circuit) -> None:
-        super().set_circuit(circuit)
+    def _set_internal_circuit(self, circuit) -> None:
+        super()._set_internal_circuit(circuit)
 
         if self.segment_sizes is None:
             self._segment_sizes = [self.num_qubits]
@@ -185,6 +185,8 @@ class SegmentedOperator(QuantumOperator, ABC):
         return self.segment_sizes[self.segment_names.index(name)]
 
     def get_segment_qubits(self, name: str) -> QuantumRegisterType:
+        # Make sure the internal circuit is built
+        self._get_internal_circuit()
         return self._segment_qubits[self.segment_names.index(name)]
 
     def get_circuit(

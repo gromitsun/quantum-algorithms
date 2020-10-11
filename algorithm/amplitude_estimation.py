@@ -46,7 +46,7 @@ class AmplitudeEstimation(QuantumOperator):
         self._q_op = q_op
         self._num_output_qubits = num_output_qubits
 
-    def build_circuit(self) -> qiskit.QuantumCircuit:
+    def _build_internal_circuit(self) -> qiskit.QuantumCircuit:
         state_reg = qiskit.QuantumRegister(self._q_op.num_target_qubits, name='state')
         output_reg = qiskit.QuantumRegister(self.num_output_qubits, name='output')
         circuit = qiskit.QuantumCircuit(state_reg, output_reg, name=self.name)
@@ -71,7 +71,7 @@ class AmplitudeEstimation(QuantumOperator):
         # apply inverse QFT
         qft(circuit, output_reg, do_swaps=False, inverse=True)
 
-        self.set_circuit(circuit)
+        self._set_internal_circuit(circuit)
 
         return circuit
 
@@ -152,8 +152,14 @@ def test2():
     #     print('  %s' % x)
 
 
+def test3():
+    o = DiffusionOperator(source_state_vector=np.array([1, -1]) / np.sqrt(2),
+                             state_vector=np.array([-1, 1]) / np.sqrt(2))
+    o.get_circuit()
+
+
 if __name__ == '__main__':
-    test1()
+    test3()
     # import matplotlib.pyplot as plt
     # qiskit.visualization.plot_histogram({value_to_estimation(state): count for state, count in res.items()})
     # plt.tight_layout()
