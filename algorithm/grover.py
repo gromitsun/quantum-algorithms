@@ -48,6 +48,9 @@ class InitializeSourceOperator(SimpleOperator):
 
 
 class DiffusionOperator(SimpleOperator):
+    """
+    Construct state_vector from source_state_vector
+    """
 
     def __init__(
             self,
@@ -56,7 +59,6 @@ class DiffusionOperator(SimpleOperator):
             source_state_vector: typing.Optional[np.array] = None,
             name: typing.Optional[str] = 'Diffusion',
     ):
-        super().__init__(name=name)
 
         assert not (num_qubits is None and state_vector is None and source_state_vector is None)
 
@@ -71,6 +73,8 @@ class DiffusionOperator(SimpleOperator):
             source_state_vector[0] = 1
 
         assert len(state_vector) == len(source_state_vector) == 2 ** num_qubits
+
+        super().__init__(num_target_qubits=num_qubits, name=name)
 
         self._state_vector = state_vector
         self._source_state_vector = source_state_vector

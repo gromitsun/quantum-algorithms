@@ -203,12 +203,13 @@ class SimpleOperator(SegmentedOperator, ABC):
 
     def __init__(
             self,
+            num_target_qubits: typing.Optional[int] = None,
             num_ancilla_qubits: int = 0,
             name: typing.Optional[str] = None,
     ):
         super().__init__(
             segment_names=['target', 'ancilla'],
-            segment_sizes=[None, num_ancilla_qubits],
+            segment_sizes=[num_target_qubits, num_ancilla_qubits],
             name=name,
         )
 
