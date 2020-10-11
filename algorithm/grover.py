@@ -139,8 +139,11 @@ class ControlledOracle(ControlledOperator, ABC):
             target_state: typing.Union[typing.Sequence[int], typing.Sequence[typing.Sequence[int]]],
             num_control_qubits: int = 1,
             num_ancilla_qubits: int = 0,
+            reverse: bool = False,
             name: typing.Optional[str] = 'Oracle',
     ):
+        self._reverse = reverse
+
         assert len(target_state) > 0
         if isinstance(target_state[0], int):
             target_state = [target_state]
@@ -158,6 +161,10 @@ class ControlledOracle(ControlledOperator, ABC):
             num_ancilla_qubits=num_ancilla_qubits,
             name=name,
         )
+
+    @property
+    def reverse(self):
+        return self._reverse
 
     @property
     def num_state_qubits(self):
@@ -193,7 +200,11 @@ class PhaseOracle(Oracle):
             for bit, rbit, q in zip(state, ref_state, state_reg):
                 if bool(bit) is not bool(rbit):
                     circuit.x(q)
+            if self.reverse:
+                circuit.mcx(state_reg[:-1], state_reg[-1])
             circuit.mcu1(self.phase, state_reg[:-1], state_reg[-1])
+            if self.reverse:
+                circuit.mcx(state_reg[:-1], state_reg[-1])
             ref_state = state
 
         for bit, q in zip(ref_state, state_reg):
@@ -214,17 +225,12 @@ class ControlledPhaseOracle(ControlledOracle):
             reverse: bool = False,
             name: typing.Optional[str] = 'PhaseOracle',
     ):
-        super().__init__(target_state, num_control_qubits=num_control_qubits, name=name)
+        super().__init__(target_state, num_control_qubits=num_control_qubits, reverse=reverse, name=name)
         self._phase = phase
-        self._reverse = reverse
 
     @property
     def phase(self):
         return self._phase
-
-    @property
-    def reverse(self):
-        return self._reverse
 
     def _build_internal_circuit(self) -> qiskit.QuantumCircuit:
         control_reg = qiskit.QuantumRegister(self.num_control_qubits, name='control')
@@ -237,7 +243,11 @@ class ControlledPhaseOracle(ControlledOracle):
             for bit, rbit, q in zip(state, ref_state, state_reg):
                 if bool(bit) is not bool(rbit):
                     circuit.x(q)
+            if self.reverse:
+                circuit.mcx(control_reg[:] + state_reg[:-1], state_reg[-1])
             circuit.mcu1(self.phase, control_reg[:] + state_reg[:-1], state_reg[-1])
+            if self.reverse:
+                circuit.mcx(control_reg[:] + state_reg[:-1], state_reg[-1])
             ref_state = state
 
         for bit, q in zip(ref_state, state_reg):
@@ -256,12 +266,7 @@ class BooleanOracle(Oracle):
             reverse: bool = False,
             name: typing.Optional[str] = 'BooleanOracle',
     ):
-        super().__init__(target_state, name=name)
-        self._reverse = reverse
-
-    @property
-    def reverse(self):
-        return self._reverse
+        super().__init__(target_state, reverse=reverse, name=name)
 
     def _build_internal_circuit(self) -> qiskit.QuantumCircuit:
         state_reg = qiskit.QuantumRegister(self.num_state_qubits)
@@ -299,7 +304,7 @@ class BooleanOracle(Oracle):
         circuit = self.apply(circuit, state_reg, output_reg)
         circuit.h(output_reg)
         circuit.cx(control_reg, output_reg)
-        ret = ControlledOracle(self.target_states, num_control_qubits=1, num_ancilla_qubits=1)
+        ret = ControlledOracle(self.target_states, num_control_qubits=1, num_ancilla_qubits=1, reverse=self.reverse)
         ret._set_internal_circuit(circuit)
         return ret
 
