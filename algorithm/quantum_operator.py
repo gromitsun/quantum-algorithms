@@ -171,13 +171,11 @@ class SegmentedOperator(QuantumOperator, ABC):
         for seg_name, seg_size in zip(self.segment_names, self.segment_sizes):
             if seg_size == 0:
                 continue
-            # get register from named qregs
-            qreg = named_qregs.get(seg_name)
-            # get register from positional qregs
-            if qreg is None:
-                qreg = next(qregs_iter)
+            # get register from (1) named qregs and then (2) positional qregs
+            qreg = named_qregs.get(seg_name, next(qregs_iter, None))
 
-            qreg_segments[seg_name] = qreg
+            if qreg is not None:
+                qreg_segments[seg_name] = qreg
 
         return qreg_segments
 
