@@ -63,7 +63,7 @@ class DiffusionOperator(SimpleOperator):
         assert not (num_qubits is None and state_vector is None and source_state_vector is None)
 
         if num_qubits is None:
-            num_qubits = int(round(math.log2(len(state_vector or source_state_vector))))
+            num_qubits = int(round(math.log2(len(state_vector if state_vector is not None else source_state_vector))))
 
         if state_vector is None:
             state_vector = np.ones(2 ** num_qubits) / 2 ** (num_qubits - 1)
