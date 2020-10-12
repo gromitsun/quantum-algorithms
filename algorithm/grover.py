@@ -7,15 +7,15 @@ import numpy as np
 import qiskit
 import qiskit.aqua.circuits
 
-from algorithm.quantum_operator import QuantumOperator, ControlledOperator, SimpleOperator
-from utils.common import state_to_sv, BinarySequenceType
+from algorithm.quantum_operator import QuantumOperator, ControlledOperator
+from utils.common import state_to_sv, get_basis_states, BinarySequenceType
 from utils.qiskit_utils import create_circuit, create_register
 
 
 ##################################################
 # Component operators -- general case
 ##################################################
-class InitializeSourceOperator(SimpleOperator):
+class InitializeSourceOperator(QuantumOperator):
 
     def __init__(
             self,
@@ -47,7 +47,7 @@ class InitializeSourceOperator(SimpleOperator):
         return circuit
 
 
-class DiffusionOperator(SimpleOperator):
+class DiffusionOperator(QuantumOperator):
     """
     Construct state_vector from source_state_vector
     """
@@ -74,7 +74,7 @@ class DiffusionOperator(SimpleOperator):
 
         assert len(state_vector) == len(source_state_vector) == 2 ** num_qubits
 
-        super().__init__(num_target_qubits=num_qubits, name=name)
+        super().__init__(name=name)
 
         self._state_vector = state_vector
         self._source_state_vector = source_state_vector
@@ -99,46 +99,11 @@ class DiffusionOperator(SimpleOperator):
         return circuit
 
 
-class Oracle(QuantumOperator, ABC):
+class Oracle(ControlledOperator, ABC):
     def __init__(
             self,
             target_state: typing.Union[typing.Sequence[int], typing.Sequence[typing.Sequence[int]]],
-            reverse: bool = False,
-            name: typing.Optional[str] = 'Oracle',
-    ):
-        super().__init__(name=name)
-        self._reverse = reverse
-
-        assert len(target_state) > 0
-        if isinstance(target_state[0], int):
-            target_state = [target_state]
-
-        self._target_states = target_state
-
-        # Check uniqueness of target states
-        assert len(set(''.join(str(x) for x in state) for state in self.target_states)) == len(self.target_states)
-
-        self._num_state_qubits = len(self.target_states[0])
-
-    @property
-    def reverse(self):
-        return self._reverse
-
-    @property
-    def num_state_qubits(self):
-        return self._num_state_qubits
-
-    @property
-    def target_states(self):
-        return self._target_states
-
-
-class ControlledOracle(ControlledOperator, ABC):
-    def __init__(
-            self,
-            target_state: typing.Union[typing.Sequence[int], typing.Sequence[typing.Sequence[int]]],
-            num_control_qubits: int = 1,
-            num_ancilla_qubits: int = 0,
+            num_control_qubits: int = 0,
             reverse: bool = False,
             name: typing.Optional[str] = 'Oracle',
     ):
@@ -157,8 +122,6 @@ class ControlledOracle(ControlledOperator, ABC):
 
         super().__init__(
             num_control_qubits=num_control_qubits,
-            num_target_qubits=self.num_state_qubits,
-            num_ancilla_qubits=num_ancilla_qubits,
             name=name,
         )
 
@@ -179,48 +142,7 @@ class PhaseOracle(Oracle):
     def __init__(
             self,
             target_state: typing.Union[typing.Sequence[int], typing.Sequence[typing.Sequence[int]]],
-            phase: float = math.pi,
-            reverse: bool = False,
-            name: typing.Optional[str] = 'PhaseOracle',
-    ):
-        super().__init__(target_state, reverse=reverse,  name=name)
-        self._phase = phase
-
-    @property
-    def phase(self):
-        return self._phase
-
-    def _build_internal_circuit(self) -> qiskit.QuantumCircuit:
-        state_reg = qiskit.QuantumRegister(self.num_state_qubits)
-        circuit = qiskit.QuantumCircuit(state_reg, name=self.name)
-
-        ref_state = [1] * self.num_state_qubits
-
-        for state in self.target_states:
-            for bit, rbit, q in zip(state, ref_state, state_reg):
-                if bool(bit) is not bool(rbit):
-                    circuit.x(q)
-            if self.reverse:
-                circuit.mcx(state_reg[:-1], state_reg[-1])
-            circuit.mcu1(self.phase, state_reg[:-1], state_reg[-1])
-            if self.reverse:
-                circuit.mcx(state_reg[:-1], state_reg[-1])
-            ref_state = state
-
-        for bit, q in zip(ref_state, state_reg):
-            if not bit:
-                circuit.x(q)
-
-        self._set_internal_circuit(circuit)
-
-        return circuit
-
-
-class ControlledPhaseOracle(ControlledOracle):
-    def __init__(
-            self,
-            target_state: typing.Union[typing.Sequence[int], typing.Sequence[typing.Sequence[int]]],
-            num_control_qubits: int = 1,
+            num_control_qubits: int = 0,
             phase: float = math.pi,
             reverse: bool = False,
             name: typing.Optional[str] = 'PhaseOracle',
@@ -233,21 +155,25 @@ class ControlledPhaseOracle(ControlledOracle):
         return self._phase
 
     def _build_internal_circuit(self) -> qiskit.QuantumCircuit:
-        control_reg = qiskit.QuantumRegister(self.num_control_qubits, name='control')
-        state_reg = qiskit.QuantumRegister(self.num_state_qubits, name='target')
-        circuit = qiskit.QuantumCircuit(control_reg, state_reg, name=self.name)
+        control_reg = create_register(self.num_control_qubits, name='control')
+        state_reg = create_register(self.num_state_qubits, name='target')
+        circuit = create_circuit(control_reg, state_reg, name=self.name)
 
         ref_state = [1] * self.num_state_qubits
 
-        for state in self.target_states:
+        target_states = self.target_states
+        if self.reverse:
+            target_states = [
+                state
+                for state in get_basis_states(self.num_state_qubits, out_type='list')
+                if state not in target_states
+            ]
+
+        for state in target_states:
             for bit, rbit, q in zip(state, ref_state, state_reg):
                 if bool(bit) is not bool(rbit):
                     circuit.x(q)
-            if self.reverse:
-                circuit.mcx(control_reg[:] + state_reg[:-1], state_reg[-1])
             circuit.mcu1(self.phase, control_reg[:] + state_reg[:-1], state_reg[-1])
-            if self.reverse:
-                circuit.mcx(control_reg[:] + state_reg[:-1], state_reg[-1])
             ref_state = state
 
         for bit, q in zip(ref_state, state_reg):
@@ -269,8 +195,8 @@ class BooleanOracle(Oracle):
         super().__init__(target_state, reverse=reverse, name=name)
 
     def _build_internal_circuit(self) -> qiskit.QuantumCircuit:
-        state_reg = qiskit.QuantumRegister(self.num_state_qubits)
-        output_reg = qiskit.QuantumRegister(1)
+        state_reg = qiskit.QuantumRegister(self.num_state_qubits, name='state')
+        output_reg = qiskit.QuantumRegister(1, name='output')
         circuit = qiskit.QuantumCircuit(state_reg, output_reg, name=self.name)
 
         ref_state = [1] * self.num_state_qubits
@@ -294,77 +220,37 @@ class BooleanOracle(Oracle):
 
         return circuit
 
-    def to_controlled_phase_oracle(self) -> ControlledOracle:
-        control_reg = qiskit.QuantumRegister(1)
-        state_reg = qiskit.QuantumRegister(self.num_state_qubits)
-        output_reg = qiskit.QuantumRegister(1)
-        circuit = qiskit.QuantumCircuit(control_reg, state_reg, output_reg, name='Controlled'+self.name)
-        circuit.cx(control_reg, output_reg)
+    def to_phase_oracle(self, num_controls: int = 0) -> PhaseOracle:
+        control_reg = create_register(num_controls, 'control')
+        state_reg = create_register(self.num_state_qubits, 'state')
+        output_reg = create_register(1, 'ancilla', reg_type='ancilla')
+        circuit = create_circuit(control_reg, state_reg, output_reg, name='Controlled'+self.name)
+        if num_controls > 0:
+            circuit.mcx(control_reg, output_reg)
+        else:
+            circuit.x(output_reg)
         circuit.h(output_reg)
         circuit = self.apply(circuit, state_reg, output_reg)
         circuit.h(output_reg)
-        circuit.cx(control_reg, output_reg)
-        ret = ControlledOracle(self.target_states, num_control_qubits=1, num_ancilla_qubits=1, reverse=self.reverse)
-        ret._set_internal_circuit(circuit)
-        return ret
-
-    def to_phase_oracle(self) -> Oracle:
-        state_reg = qiskit.QuantumRegister(self.num_state_qubits)
-        output_reg = qiskit.QuantumRegister(1)
-        circuit = qiskit.QuantumCircuit(state_reg, output_reg, name=self.name)
-        circuit.x(output_reg)
-        circuit.h(output_reg)
-        circuit = self.apply(circuit, state_reg, output_reg)
-        circuit.h(output_reg)
-        circuit.x(output_reg)
-        ret = Oracle(self.target_states)
+        if num_controls > 0:
+            circuit.mcx(control_reg, output_reg)
+        else:
+            circuit.x(output_reg)
+        ret = PhaseOracle(self.target_states, num_control_qubits=num_controls, reverse=self.reverse)
         ret._set_internal_circuit(circuit)
         return ret
 
 
-class GroverIterate(SimpleOperator):
-    def __init__(
-            self,
-            a_op: QuantumOperator,
-            rs_op: QuantumOperator,
-            oracle: PhaseOracle,
-            name: typing.Optional[str] = 'GroverIterate',
-    ):
-        super().__init__(name=name)
-        self._a_op = a_op
-        self._rs_op = rs_op
-        self._oracle = oracle
-
-    def _build_internal_circuit(self) -> qiskit.QuantumCircuit:
-        qreg = qiskit.QuantumRegister(self._oracle.num_qubits)
-        circuit = qiskit.QuantumCircuit(qreg, name=self.name)
-
-        self._oracle(circuit, qreg)
-        self._a_op.apply_inverse(circuit, qreg)
-        self._rs_op(circuit, qreg)
-        self._a_op(circuit, qreg)
-
-        self._set_internal_circuit(circuit)
-
-        return circuit
-
-
-class ControlledGroverIterate(ControlledOperator):
+class GroverIterate(ControlledOperator):
     def __init__(
             self,
             a_op: QuantumOperator,
             rs_op: ControlledOperator,
-            oracle: ControlledPhaseOracle,
+            oracle: PhaseOracle,
             name: typing.Optional[str] = 'GroverIterate',
     ):
         super().__init__(
             num_control_qubits=oracle.num_control_qubits,
-            num_target_qubits=oracle.num_target_qubits,
-            num_ancilla_qubits=max(
-                oracle.num_ancilla_qubits,
-                rs_op.num_ancilla_qubits,
-                a_op.num_qubits - oracle.num_target_qubits,
-            ),
             name=name,
         )
         self._a_op = a_op
@@ -373,15 +259,10 @@ class ControlledGroverIterate(ControlledOperator):
 
     def _build_internal_circuit(self) -> qiskit.QuantumCircuit:
         control_reg = create_register(self.num_control_qubits, name='control')
-        target_reg = create_register(self.num_target_qubits, name='target')
-        ancilla_reg = create_register(self.num_ancilla_qubits, name='ancilla')
+        target_reg = create_register(self._oracle.num_target_qubits, name='target')
+        num_ancillas = max(self._oracle.num_ancillas, self._a_op.num_ancillas, self._rs_op.num_ancillas)
+        ancilla_reg = create_register(num_ancillas, name='ancilla', reg_type='ancilla')
         circuit = create_circuit(control_reg, target_reg, ancilla_reg, name=self.name)
-
-        # flip sign
-        if self.num_control_qubits == 1:
-            circuit.z(control_reg)
-        else:
-            circuit.mcu1(math.pi, control_reg[:-1], control_reg[-1])
 
         self._oracle(circuit, control_reg, target_reg, ancilla_reg)
         self._a_op.apply_inverse(circuit, target_reg, ancilla_reg)

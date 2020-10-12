@@ -6,7 +6,7 @@ import qiskit
 
 from algorithm.quantum_operator import QuantumOperator, ControlledOperator
 from algorithm.qft import qft
-from algorithm.grover import DiffusionOperator, ControlledPhaseOracle, ControlledGroverIterate
+from utils.qiskit_utils import create_register, create_circuit
 
 
 def state_to_amplitude(state: str):
@@ -47,15 +47,19 @@ class AmplitudeEstimation(QuantumOperator):
         self._num_output_qubits = num_output_qubits
 
     def _build_internal_circuit(self) -> qiskit.QuantumCircuit:
-        state_reg = qiskit.QuantumRegister(self._q_op.num_target_qubits, name='state')
-        output_reg = qiskit.QuantumRegister(self.num_output_qubits, name='output')
-        circuit = qiskit.QuantumCircuit(state_reg, output_reg, name=self.name)
+        state_reg = create_register(self._q_op.num_target_qubits, name='state')
+        output_reg = create_register(self.num_output_qubits, name='output')
+        ancilla_reg = create_register(
+            max(self._a_op.num_ancillas, self._q_op.num_ancillas),
+            name='ancilla', reg_type='ancilla'
+        )
+        circuit = create_circuit(state_reg, output_reg, ancilla_reg, name=self.name)
 
         # reverse qubits
         output_reg = output_reg[::-1]
 
         # apply A operator
-        self._a_op(circuit, state_reg)
+        self._a_op(circuit, state_reg, ancilla_reg)
 
         # apply Hadamard on output register
         circuit.h(output_reg)
@@ -63,7 +67,7 @@ class AmplitudeEstimation(QuantumOperator):
         # apply controlled-Q operator
         for k, q in enumerate(output_reg):
             for _ in range(2**k):
-                self._q_op(circuit, q, state_reg)
+                self._q_op(circuit, q, state_reg, ancilla_reg)
 
         # reverse qubits
         output_reg = output_reg[::-1]
@@ -78,90 +82,3 @@ class AmplitudeEstimation(QuantumOperator):
     @property
     def num_output_qubits(self):
         return self._num_output_qubits
-
-
-def test1():
-    from algorithm.ae_utils import mle
-    from utils.qiskit_utils import get_counts
-
-    num_qubits = 3
-    num_output_qubits = 5
-    target_states = [[0, 0, 0], [0, 1, 1]]
-    source_state = [0] * num_qubits
-    a_op = DiffusionOperator(num_qubits=num_qubits)
-    rs_op = ControlledPhaseOracle(target_state=source_state)
-    oracle = ControlledPhaseOracle(target_state=target_states)
-    q_op = ControlledGroverIterate(a_op=a_op, rs_op=rs_op, oracle=oracle)
-
-    ae = AmplitudeEstimation(a_op, q_op, num_output_qubits=num_output_qubits)
-
-    print(ae.draw(fold=-1))
-
-    qc = ae.get_circuit()
-
-    creg = qiskit.ClassicalRegister(num_output_qubits, 'c')
-    qc.add_register(creg)
-
-    qc.measure(qc.qregs[1], creg)
-
-    print(qc.draw(fold=-1))
-
-    shots = 10000
-    res = get_counts(qc, shots)
-
-    print(res)
-    a, p = counts_to_amplitudes(res)
-    for _a, _p in zip(a, p / np.sum(p)):
-        print("%.5f: %s" % (_a, _p))
-
-    qae = a[np.argmax(p)]
-    m = ae.num_output_qubits
-
-    print(mle(qae, a, p, m, shots))
-
-
-def test2():
-    from algorithm.ae_utils import mle
-    from utils.qiskit_utils import get_counts, get_statevector
-
-    num_qubits = 3
-    num_output_qubits = 5
-    target_states = [[0, 0, 0]]
-    source_state = [0] * num_qubits
-    a_op = DiffusionOperator(num_qubits=num_qubits)
-    rs_op = ControlledPhaseOracle(target_state=source_state)
-    oracle = ControlledPhaseOracle(target_state=target_states)
-    q_op = ControlledGroverIterate(a_op=a_op, rs_op=rs_op, oracle=oracle)
-
-    ae = AmplitudeEstimation(a_op, q_op, num_output_qubits=num_output_qubits)
-
-    qc = qiskit.QuantumCircuit(*q_op.qregs)
-
-    qc.h(q_op.control_qubits)
-
-    a_op(qc, q_op.target_qubits)
-    # rs_op(qc, q_op.control_qubits, q_op.target_qubits)
-    # oracle(qc, q_op.control_qubits, q_op.target_qubits)
-    q_op(qc, q_op.control_qubits, q_op.target_qubits)
-
-    res = get_statevector(qc)
-
-    print(res[::2])
-    print(res[1::2])
-    # for x in res:
-    #     print('  %s' % x)
-
-
-def test3():
-    o = DiffusionOperator(source_state_vector=np.array([1, -1]) / np.sqrt(2),
-                             state_vector=np.array([-1, 1]) / np.sqrt(2))
-    o.get_circuit()
-
-
-if __name__ == '__main__':
-    test3()
-    # import matplotlib.pyplot as plt
-    # qiskit.visualization.plot_histogram({value_to_estimation(state): count for state, count in res.items()})
-    # plt.tight_layout()
-    # plt.show()
-

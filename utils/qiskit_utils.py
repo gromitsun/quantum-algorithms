@@ -97,10 +97,25 @@ def create_circuit(*qregs: QuantumRegisterType, name: typing.Optional[str] = Non
     return qiskit.QuantumCircuit(*_qregs, name=name)
 
 
-def create_register(num_qubits: int, name: typing.Optional[str] = None) -> QuantumRegisterType:
+def create_register(
+        num_qubits: int,
+        name: typing.Optional[str] = None,
+        reg_type: typing.Union[str, type] = 'quantum'
+) -> QuantumRegisterType:
     if num_qubits <= 0:
         return []
-    return qiskit.QuantumRegister(num_qubits, name=name)
+
+    if isinstance(reg_type, str):
+        if reg_type == 'quantum':
+            reg_type = qiskit.QuantumRegister
+        elif reg_type == 'classical':
+            reg_type = qiskit.ClassicalRegister
+        elif reg_type == 'ancilla':
+            reg_type = qiskit.AncillaRegister
+
+    assert isinstance(reg_type, type)
+
+    return reg_type(num_qubits, name=name)
 
 
 class QubitIterator(object):
