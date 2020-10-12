@@ -4,6 +4,8 @@ import typing
 import numpy as np
 import qiskit
 
+from utils.common import get_basis_states
+
 
 def swap_qubits(circuit: qiskit.QuantumCircuit, qreg) -> None:
     """
@@ -66,9 +68,6 @@ def qiskit_qft(
 
 
 # QFT reorder
-def get_basis_states(n_qubits: int) -> typing.List[str]:
-    return ['{{:0{:d}b}}'.format(n_qubits).format(x) for x in range(2 ** n_qubits)]
-
 
 def qft_get_reorder_idx(n_qubits: int) -> typing.List[int]:
     """Get indices for reordering QFT basis states"""

@@ -8,6 +8,7 @@ BinaryStrType = typing.Union[BinarySequenceType, str]
 
 def int_to_bin_str(x: int, n_bits: typing.Union[int, None] = None) -> str:
     """int -> binary string (small-endian)"""
+    # '{{:0{:d}b}}'.format(n_bits).format(x)
     bstr = bin(x)[2:]
     if n_bits is not None:
         return bstr.zfill(n_bits)
@@ -23,7 +24,7 @@ def int_to_bin_list(x: int, n_bits: typing.Union[int, None] = None) -> typing.Li
 def int_to_bin(
         x: int,
         n_bits: typing.Union[int, None] = None,
-        out_type: str = 'str'
+        out_type: str = 'str',
 ) -> typing.Union[str, typing.List[int]]:
     if out_type.startswith('s'):
         return int_to_bin_str(x, n_bits=n_bits)
@@ -36,6 +37,10 @@ def bin_list_to_int(
         bin_list: BinarySequenceType,
 ) -> float:
     return 2 ** np.arange(len(bin_list)) @ bin_list
+
+
+def get_basis_states(n_bits: int, out_type: str = 'str') -> typing.Union[typing.List[BinaryStrType]]:
+    return [int_to_bin(x, n_bits=n_bits, out_type=out_type) for x in range(2 ** n_bits)]
 
 
 def state_to_sv(
