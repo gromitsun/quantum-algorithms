@@ -20,18 +20,34 @@ class QuantumOperator(ABC):
         self._name = name
 
     @property
-    def num_qubits(self) -> int:
-        return self._get_internal_circuit().num_qubits
-
-    @property
     def qregs(self) -> typing.List[qiskit.QuantumRegister]:
         return self._get_internal_circuit().qregs
 
     @property
-    def name(self):
+    def qubits(self) -> typing.List[qiskit.circuit.Qubit]:
+        return self._get_internal_circuit().qubits
+
+    @property
+    def ancillas(self) -> typing.List[qiskit.circuit.AncillaQubit]:
+        return self._get_internal_circuit().ancillas
+
+    @property
+    def num_qubits(self) -> int:
+        return self._get_internal_circuit().num_qubits
+
+    @property
+    def num_ancillas(self) -> int:
+        return self._get_internal_circuit().num_ancillas
+
+    @property
+    def num_main_qubits(self) -> int:
+        return self.num_qubits - self.num_ancillas
+
+    @property
+    def name(self) -> str:
         return self._name
 
-    def _get_internal_circuit(self):
+    def _get_internal_circuit(self) -> qiskit.QuantumCircuit:
         if self._circuit is None:
             self._build_internal_circuit()
         return self._circuit
@@ -45,11 +61,11 @@ class QuantumOperator(ABC):
         else:
             circuit.name = self.name
 
-    def draw(self, *args, **kwargs):
-        return self._get_internal_circuit().draw(*args, **kwargs)
-
     def _build_internal_circuit(self) -> qiskit.QuantumCircuit:
         raise NotImplementedError("Abstract class")
+
+    def draw(self, *args, **kwargs):
+        return self._get_internal_circuit().draw(*args, **kwargs)
 
     def get_circuit(
             self,
@@ -112,13 +128,18 @@ class SegmentedOperator(QuantumOperator, ABC):
     def __init__(
             self,
             segment_names: typing.Optional[typing.Sequence[str]] = None,
-            segment_sizes: typing.Optional[typing.Sequence[int]] = None,
+            segment_sizes: typing.Optional[typing.Sequence[typing.Optional[int]]] = None,
             name: typing.Optional[str] = None,
     ):
         super().__init__(name=name)
 
         if segment_names is None:
             segment_names = ['segment_%d' % i for i in range(len(segment_sizes))]
+        else:
+            segment_names = list(segment_names)
+
+        if segment_sizes is not None:
+            segment_sizes = list(segment_sizes)
 
         self._segment_sizes = segment_sizes
         self._segment_names = segment_names
@@ -144,11 +165,11 @@ class SegmentedOperator(QuantumOperator, ABC):
         self._segment_qubits = [qubits.get(size) for size in self.segment_sizes]
 
     @property
-    def segment_names(self):
+    def segment_names(self) -> typing.List[str]:
         return self._segment_names
 
     @property
-    def segment_sizes(self):
+    def segment_sizes(self) -> typing.Optional[typing.List[typing.Optional[int]]]:
         return self._segment_sizes
 
     def _parse_input_qregs(
