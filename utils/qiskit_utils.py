@@ -4,6 +4,9 @@ import itertools
 import numpy as np
 import qiskit
 
+from qiskit.circuit.register import Register
+from qiskit.circuit.bit import Bit
+
 from utils.common import int_to_bin
 
 
@@ -75,26 +78,40 @@ def get_inverse(op):
 ######################################
 # Miscellaneous
 ######################################
+RegisterType = typing.Union[Register, typing.Sequence[Bit]]
 QuantumRegisterType = typing.Union[qiskit.QuantumRegister, typing.Sequence[qiskit.circuit.Qubit]]
+ClassicalRegisterType = typing.Union[qiskit.ClassicalRegister, typing.Sequence[qiskit.circuit.Clbit]]
+
+assert issubclass(qiskit.QuantumRegister, Register)
+assert issubclass(qiskit.circuit.Qubit, Bit)
+assert issubclass(qiskit.ClassicalRegister, Register)
+assert issubclass(qiskit.circuit.Clbit, Bit)
 
 
-def create_circuit(*qregs: QuantumRegisterType, name: typing.Optional[str] = None) -> qiskit.QuantumCircuit:
-    _qregs = []
+def get_unique_registers(*registers: RegisterType):
+    _registers = []
 
-    for qreg in qregs:
-        if isinstance(qreg, qiskit.QuantumRegister):
-            if qreg not in _qregs:
-                _qregs.append(qreg)
-        elif isinstance(qreg, typing.Sequence):
-            for q in qreg:
-                if not isinstance(q, qiskit.circuit.Qubit):
-                    raise TypeError("Expect Qubit type, got %s", type(q))
-                if q.register not in _qregs:
-                    _qregs.append(q.register)
+    for reg in registers:
+        if isinstance(reg, qiskit.QuantumRegister):
+            if reg not in _registers:
+                _registers.append(reg)
+        elif isinstance(reg, typing.Sequence):
+            for bit in reg:
+                if not isinstance(bit, qiskit.circuit.Qubit):
+                    raise TypeError("Expect Qubit type, got %s", type(bit))
+                if bit.register not in _registers:
+                    _registers.append(bit.register)
         else:
-            raise TypeError("Expected QuantumRegister or sequence of Qubits, got %s", type(qreg))
+            raise TypeError("Expected QuantumRegister or sequence of Qubits, got %s", type(reg))
 
-    return qiskit.QuantumCircuit(*_qregs, name=name)
+    return _registers
+
+
+def create_circuit(*registers: RegisterType, name: typing.Optional[str] = None) -> qiskit.QuantumCircuit:
+
+    _registers = get_unique_registers(*registers)
+
+    return qiskit.QuantumCircuit(*_registers, name=name)
 
 
 def create_register(
@@ -118,18 +135,39 @@ def create_register(
     return reg_type(num_qubits, name=name)
 
 
+def add_registers_to_circuit(circuit, *registers: RegisterType) -> qiskit.QuantumCircuit:
+    _registers = get_unique_registers(*registers)
+
+    for reg in _registers:
+        if not circuit.has_register(reg):
+            circuit.add_register(reg)
+
+    return circuit
+
+
 class QubitIterator(object):
-    def __init__(self, *qregs: QuantumRegisterType):
-        self._qregs = qregs
-        self._qubits = itertools.chain(*qregs)
+    def __init__(self, *registers: RegisterType):
+        self._registers = registers
+        self._bits = itertools.chain(*registers)
 
     @property
-    def qregs(self):
-        return self._qregs
+    def registers(self):
+        return self._registers
 
     def get(self, n: typing.Optional[int] = None):
         if n is None:
-            # return a list of all qubits
-            return list(self._qubits)
+            # return a list of all remaining qubits
+            return list(self._bits)
         # return a list of n qubits
-        return [next(self._qubits) for _ in range(n)]
+        return [next(self._bits) for _ in range(n)]
+
+
+def split_register(registers: typing.Sequence[RegisterType], sizes: typing.Sequence[int], keep_extra: bool = False):
+    bits = QubitIterator(*registers)
+    segments = [bits.get(size) for size in sizes]
+    if keep_extra:
+        try:
+            segments.append(bits.get())
+        except StopIteration:
+            pass
+    return segments

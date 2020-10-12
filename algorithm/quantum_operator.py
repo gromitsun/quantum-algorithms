@@ -5,7 +5,7 @@ from abc import ABC
 
 import qiskit
 
-from utils.qiskit_utils import QuantumRegisterType, create_circuit, QubitIterator
+from utils.qiskit_utils import QuantumRegisterType, create_circuit, add_registers_to_circuit, split_register
 
 
 class QuantumOperator(ABC):
@@ -47,16 +47,46 @@ class QuantumOperator(ABC):
     def name(self) -> str:
         return self._name
 
-    @staticmethod
-    def _parse_regs_or_qubits(
-            qregs: typing.Sequence[typing.Union[QuantumRegisterType, qiskit.circuit.Qubit]],
+    def _parse_input_qregs(
+            self,
+            *qregs: typing.Union[QuantumRegisterType, qiskit.circuit.Qubit],
+            **named_qregs: typing.Union[QuantumRegisterType, qiskit.circuit.Qubit],
     ) -> typing.List[QuantumRegisterType]:
         """
-        Parse list of qregs but also accept one single qubit as a register
-        :param qregs: list of qregs or single qubits
-        :return: list of QuantumRegisterType
+        Parse input qregs for apply / apply_inverse
+        :param qregs: positional input qregs
+        :param named_qregs: named input qregs
+        :return: dict of quantum register segments
         """
-        return [[qreg] if isinstance(qreg, qiskit.circuit.Qubit) else qreg for qreg in qregs]
+
+        # Iterator over positional qregs
+        qregs_iter = iter(qregs)
+
+        # quantum registers to be passed to the get_circuit method
+        parsed_qregs = []
+
+        for expected_qreg in self.qregs:
+            # Try to get register from the following in order:
+            #   (1) named qregs
+            #   (2) positional qregs
+            #   (3) qregs from internal circuit
+            qreg = named_qregs.get(expected_qreg.name, next(qregs_iter, expected_qreg))
+
+            # Allow single Qubit inputs
+            if isinstance(qreg, qiskit.circuit.Qubit):
+                qreg = [qreg]
+
+            if len(qreg) < expected_qreg.size:
+                raise RuntimeError(
+                    "Insufficient size for register %s. Expected %d got %d.",
+                    expected_qreg.name, expected_qreg.size, len(qreg)
+                )
+
+            qreg = qreg[:expected_qreg.size]
+
+            parsed_qregs.append(qreg)
+
+        return parsed_qregs
 
     def _get_internal_circuit(self) -> qiskit.QuantumCircuit:
         if self._circuit is None:
@@ -74,6 +104,9 @@ class QuantumOperator(ABC):
 
     def _build_internal_circuit(self) -> qiskit.QuantumCircuit:
         raise NotImplementedError("Abstract class")
+
+    def split_register(self, *qregs):
+        return split_register(registers=qregs, sizes=[qreg.size for qreg in self.qregs])
 
     def draw(self, *args, **kwargs):
         return self._get_internal_circuit().draw(*args, **kwargs)
@@ -96,10 +129,15 @@ class QuantumOperator(ABC):
             if circuit is None:
                 # Construct new circuit with internal registers
                 circuit = qiskit.QuantumCircuit(*self.qregs, name=self.name)
+            # Use registers from the provided / constructed circuit
             qregs = circuit.qregs
         # No circuit provided but register is provided
         elif circuit is None:
+            # Create new circuit with provided registers
             circuit = create_circuit(*qregs)
+        # Both circuit and registers are provided
+        else:
+            add_registers_to_circuit(circuit, *qregs)
 
         # Chain qregs into list of qubits
         qubits = list(itertools.chain(*qregs))
@@ -123,14 +161,31 @@ class QuantumOperator(ABC):
         inv._circuit = inv._circuit.inverse()
         return inv
 
-    def apply(self, circuit: qiskit.QuantumCircuit, *qregs: QuantumRegisterType) -> qiskit.QuantumCircuit:
-        return self.get_circuit(circuit, type(self)._parse_regs_or_qubits(qregs))
+    def apply(
+            self,
+            circuit: qiskit.QuantumCircuit,
+            *qregs: typing.Union[QuantumRegisterType, qiskit.circuit.Qubit],
+            **named_qregs: typing.Union[QuantumRegisterType, qiskit.circuit.Qubit],
+    ) -> qiskit.QuantumCircuit:
+        _qregs = self._parse_input_qregs(*qregs, **named_qregs)
+        return self.get_circuit(circuit, qregs=_qregs)
 
-    def apply_inverse(self, circuit: qiskit.QuantumCircuit, *qregs: QuantumRegisterType) -> qiskit.QuantumCircuit:
-        return self.get_circuit(circuit, type(self)._parse_regs_or_qubits(qregs), inv=True)
+    def apply_inverse(
+            self,
+            circuit: qiskit.QuantumCircuit,
+            *qregs: typing.Union[QuantumRegisterType, qiskit.circuit.Qubit],
+            **named_qregs: typing.Union[QuantumRegisterType, qiskit.circuit.Qubit],
+    ) -> qiskit.QuantumCircuit:
+        _qregs = self._parse_input_qregs(*qregs, **named_qregs)
+        return self.get_circuit(circuit, qregs=_qregs, inv=True)
 
-    def __call__(self, circuit: qiskit.QuantumCircuit, *qregs: QuantumRegisterType) -> qiskit.QuantumCircuit:
-        return self.apply(circuit, *qregs)
+    def __call__(
+            self,
+            circuit: qiskit.QuantumCircuit,
+            *qregs: typing.Union[QuantumRegisterType, qiskit.circuit.Qubit],
+            **named_qregs: typing.Union[QuantumRegisterType, qiskit.circuit.Qubit],
+    ) -> qiskit.QuantumCircuit:
+        return self.apply(circuit, *qregs, **named_qregs)
 
 
 class ControlledOperator(QuantumOperator, ABC):

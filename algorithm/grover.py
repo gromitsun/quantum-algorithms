@@ -264,9 +264,9 @@ class GroverIterate(ControlledOperator):
         ancilla_reg = create_register(num_ancillas, name='ancilla', reg_type='ancilla')
         circuit = create_circuit(control_reg, target_reg, ancilla_reg, name=self.name)
 
-        self._oracle(circuit, control_reg, target_reg, ancilla_reg)
+        self._oracle(circuit, *circuit.qregs)
         self._a_op.apply_inverse(circuit, target_reg, ancilla_reg)
-        self._rs_op(circuit, control_reg, target_reg, ancilla_reg)
+        self._rs_op(circuit, *circuit.qregs)
         self._a_op(circuit, target_reg, ancilla_reg)
 
         self._set_internal_circuit(circuit)
