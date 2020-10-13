@@ -88,11 +88,19 @@ class DiffusionOperator(QuantumOperator):
         return self._source_state_vector
 
     def _build_internal_circuit(self) -> qiskit.QuantumCircuit:
+        num_qubits = int(round(math.log2(len(self.state_vector))))
+        qreg = qiskit.QuantumRegister(num_qubits, name='state')
+        circuit = qiskit.QuantumCircuit(qreg, name=self.name)
+
         # Reverse init source op
-        circuit = qiskit.aqua.circuits.StateVectorCircuit(self.source_state_vector).construct_circuit().inverse()
+        circuit = qiskit.aqua.circuits.StateVectorCircuit(
+            self.source_state_vector
+        ).construct_circuit(circuit, qreg).inverse()
 
         # Prepare desired state specified by sv
-        circuit = qiskit.aqua.circuits.StateVectorCircuit(self.state_vector).construct_circuit(circuit)
+        circuit = qiskit.aqua.circuits.StateVectorCircuit(
+            self.state_vector
+        ).construct_circuit(circuit, qreg)
 
         self._set_internal_circuit(circuit)
 
@@ -156,7 +164,7 @@ class PhaseOracle(Oracle):
 
     def _build_internal_circuit(self) -> qiskit.QuantumCircuit:
         control_reg = create_register(self.num_control_qubits, name='control')
-        state_reg = create_register(self.num_state_qubits, name='target')
+        state_reg = create_register(self.num_state_qubits, name='state')
         circuit = create_circuit(control_reg, state_reg, name=self.name)
 
         ref_state = [1] * self.num_state_qubits
@@ -246,7 +254,7 @@ class GroverIterate(ControlledOperator):
             self,
             a_op: QuantumOperator,
             rs_op: ControlledOperator,
-            oracle: PhaseOracle,
+            oracle: Oracle,
             name: typing.Optional[str] = 'GroverIterate',
     ):
         super().__init__(
@@ -259,15 +267,15 @@ class GroverIterate(ControlledOperator):
 
     def _build_internal_circuit(self) -> qiskit.QuantumCircuit:
         control_reg = create_register(self.num_control_qubits, name='control')
-        target_reg = create_register(self._oracle.num_target_qubits, name='target')
+        state_reg = create_register(self._oracle.num_state_qubits, name='state')
         num_ancillas = max(self._oracle.num_ancillas, self._a_op.num_ancillas, self._rs_op.num_ancillas)
         ancilla_reg = create_register(num_ancillas, name='ancilla', reg_type='ancilla')
-        circuit = create_circuit(control_reg, target_reg, ancilla_reg, name=self.name)
+        circuit = create_circuit(control_reg, state_reg, ancilla_reg, name=self.name)
 
-        self._oracle(circuit, *circuit.qregs)
-        self._a_op.apply_inverse(circuit, target_reg, ancilla_reg)
-        self._rs_op(circuit, *circuit.qregs)
-        self._a_op(circuit, target_reg, ancilla_reg)
+        self._oracle(circuit, control=control_reg, state=state_reg, ancilla=ancilla_reg)
+        self._a_op.apply_inverse(circuit, state_reg, ancilla=ancilla_reg)
+        self._rs_op(circuit, control=control_reg, state=state_reg, ancilla=ancilla_reg)
+        self._a_op(circuit, state_reg, ancilla=ancilla_reg)
 
         self._set_internal_circuit(circuit)
 
@@ -288,10 +296,12 @@ def optimal_iterations(num_qubits: int, num_targets: int = 1) -> int:
 ##################################################
 # Grover search circuit
 ##################################################
+
 def grover_circuit(
         target: typing.Union[typing.Sequence[BinarySequenceType], BinarySequenceType],
         source: BinarySequenceType = None,
         niter: typing.Union[int, None] = None,
+        oracle_type: str = 'phase',
         measure: bool = True,
 ) -> qiskit.QuantumCircuit:
 
@@ -328,13 +338,20 @@ def grover_circuit(
 
     # Grover iterations
     rs_op = PhaseOracle(target_state=source)
-    oracle = PhaseOracle(target_state=target)
+    if oracle_type == 'phase':
+        oracle = PhaseOracle(target_state=target)
+    elif oracle_type == 'bool':
+        oracle = BooleanOracle(target_state=target).to_phase_oracle()
+    else:
+        raise ValueError("Unknown oracle type %s", oracle_type)
     grover_op = GroverIterate(a_op=a_op, rs_op=rs_op, oracle=oracle)
     for _ in range(niter):
         grover_op(qc, qreg)
 
     # measurement
     if measure:
-        qc.measure_all()
+        creg = qiskit.ClassicalRegister(grover_op.get_register('state').size, 'output')
+        qc.add_register(creg)
+        qc.measure(grover_op.get_register('state'), creg)
 
     return qc

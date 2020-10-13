@@ -11,12 +11,12 @@ from utils.qiskit_utils import get_statevector
 
 class GroverTest(unittest.TestCase):
 
-    def test_grover_search(self):
+    def _test_grover_search(self, oracle_type):
         # good state to search for (big-endian)
         good_state = [0, 1, 0, 1, 0]
 
         # construct the circuit
-        qc = grover.grover_circuit(target=good_state, measure=False)
+        qc = grover.grover_circuit(target=good_state, oracle_type=oracle_type, measure=False)
         # run the circuit
         res = get_statevector(qc)
 
@@ -36,6 +36,12 @@ class GroverTest(unittest.TestCase):
         n_iters = grover.optimal_iterations(num_qubits=n_qubits)
         theta = math.asin(1 / math.sqrt(2 ** n_qubits))
         self.assertAlmostEqual(abs(max_amplitude), math.sin((2 * n_iters + 1) * theta))
+
+    def test_grover_search_phase_oracle(self):
+        self._test_grover_search('phase')
+
+    def test_grover_search_boolean_oracle(self):
+        self._test_grover_search('bool')
 
     def test_grover_search_random(self):
         n_qubits = random.randint(2, 8)
