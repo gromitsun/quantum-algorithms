@@ -3,7 +3,7 @@ import numpy as np
 import qiskit
 
 from algorithm.grover import DiffusionOperator, PhaseOracle, BooleanOracle, GroverIterate
-from algorithm.amplitude_estimation import AmplitudeEstimation, counts_to_amplitudes
+from algorithm.amplitude_estimation import AmplitudeEstimation, counts_to_estimates
 from algorithm.ae_utils import mle
 from utils.qiskit_utils import get_counts
 
@@ -28,7 +28,7 @@ class AmplitudeEstimationTest(unittest.TestCase):
         shots = 10000
         res = get_counts(qc, shots)
 
-        a, p = counts_to_amplitudes(res)
+        a, p = counts_to_estimates(res)
 
         qae = a[np.argmax(p)]
         m = ae.num_output_qubits

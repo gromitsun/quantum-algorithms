@@ -9,24 +9,38 @@ from algorithm.qft import qft
 from utils.qiskit_utils import create_register, create_circuit
 
 
-def state_to_amplitude(state: str):
+def state_to_estimate(state: str):
+    """
+    Convert a state to an estimate of the squared amplitude
+    :param state: binary str
+    :return: estiamte of the amplitude squared (i.e. a^2)
+    """
     m = len(state)
     y = int(state, base=2)
     return math.sin(math.pi*y/2**m)**2
 
 
-def counts_to_amplitudes(
+def counts_to_estimates(
         counts: typing.Dict[str, float],
         precision: typing.Optional[int] = 5
 ) -> typing.Tuple[np.array, np.array]:
+    """
+    Convert state counts data to estimated squared amplitudes
+    :param counts: dict {state: count/probability}
+    :param precision: precision used in rounding converted estimates
+    :return: arrays of estimated values and corresponding counts
+             sorted in ascending order of values
+    """
     estimates = {}
     for state, count in counts.items():
-        a = state_to_amplitude(state)
+        a = state_to_estimate(state)
         if precision is not None:
             a = round(a, precision)
         estimates[a] = count + estimates.get(a, 0)
 
     res = np.array(sorted(estimates.items()))
+    # return arrays of estimated values and corresponding counts
+    # sorted in ascending order of values
     return res[:, 0], res[:, 1]
 
 
