@@ -9,7 +9,7 @@ import qiskit.aqua.circuits
 
 from algorithm.quantum_operator import QuantumOperator, ControlledOperator
 from utils.common import state_to_sv, get_basis_states, BinarySequenceType
-from utils.qiskit_utils import create_circuit, create_register
+from utils.qiskit_utils import create_circuit, create_register, add_registers_to_circuit
 
 
 ##################################################
@@ -345,8 +345,10 @@ def grover_circuit(
     else:
         raise ValueError("Unknown oracle type %s", oracle_type)
     grover_op = GroverIterate(a_op=a_op, rs_op=rs_op, oracle=oracle)
+    ancilla = create_register(grover_op.num_ancillas, name='ancilla')
+    add_registers_to_circuit(qc, ancilla)
     for _ in range(niter):
-        grover_op(qc, qreg)
+        grover_op(qc, qreg, ancilla=ancilla)
 
     # measurement
     if measure:

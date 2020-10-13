@@ -69,8 +69,14 @@ class QuantumOperator(ABC):
             # Try to get register from the following in order:
             #   (1) named qregs
             #   (2) positional qregs
-            #   (3) qregs from internal circuit
-            qreg = named_qregs.get(expected_qreg.name, next(qregs_iter, expected_qreg))
+            qreg = named_qregs.get(expected_qreg.name, next(qregs_iter, None))
+
+            # Register not provided
+            if qreg is None:
+                raise RuntimeError(
+                    "Missing register for %s (size = %d)",
+                    expected_qreg.name, expected_qreg.size,
+                )
 
             # Allow single Qubit inputs
             if isinstance(qreg, qiskit.circuit.Qubit):
@@ -122,6 +128,15 @@ class QuantumOperator(ABC):
             qregs: typing.Optional[typing.Sequence[QuantumRegisterType]] = None,
             inv: typing.Optional[bool] = False,
     ) -> qiskit.QuantumCircuit:
+        """
+        Get a circuit with this operator applied.
+        :param circuit: (Optional) circuit to append the operator to.
+                        If not provided, a new circuit will be constructed.
+        :param qregs: (Optional) quantum registers to apply this operator to.
+                      If not provided, registers from the internal circuit will be used.
+        :param inv:  (bool, Optional) invert the operator
+        :return: quantum circuit
+        """
 
         # No register provided
         if qregs is None:
@@ -140,6 +155,7 @@ class QuantumOperator(ABC):
             add_registers_to_circuit(circuit, *qregs)
 
         # Chain qregs into list of qubits
+        # Note that this may be a subset of circuit.qubits when both circuit and qregs are provided
         qubits = list(itertools.chain(*qregs))
 
         if len(qubits) < self.num_qubits:
