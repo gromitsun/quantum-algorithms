@@ -89,8 +89,6 @@ class AmplitudeEstimation(QuantumOperator):
         # apply inverse QFT
         qft(circuit, output_reg, do_swaps=False, inverse=True)
 
-        self._set_internal_circuit(circuit)
-
         return circuit
 
     @property

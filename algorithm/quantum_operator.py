@@ -25,6 +25,10 @@ class QuantumOperator(ABC):
         return self._get_internal_circuit().qregs
 
     @property
+    def named_qregs(self) -> typing.Dict[str, qiskit.QuantumRegister]:
+        return {qreg.name: qreg for qreg in self.qregs}
+
+    @property
     def qubits(self) -> typing.List[qiskit.circuit.Qubit]:
         return self._get_internal_circuit().qubits
 
@@ -50,14 +54,21 @@ class QuantumOperator(ABC):
 
     def _parse_input_qregs(
             self,
-            *qregs: typing.Union[QuantumRegisterType, qiskit.circuit.Qubit],
-            **named_qregs: typing.Union[QuantumRegisterType, qiskit.circuit.Qubit],
+            qregs: typing.Optional[typing.Sequence[QuantumRegisterType]] = None,
+            named_qregs: typing.Optional[typing.Dict[str, QuantumRegisterType]] = None,
+            extra_named_qregs: typing.Optional[typing.Dict[str, QuantumRegisterType]] = None,
     ) -> typing.List[QuantumRegisterType]:
         """
-        Parse input qregs for apply / apply_inverse
-        :param qregs: positional input qregs
-        :param named_qregs: named input qregs
-        :return: dict of quantum register segments
+        Get quantum arguments according to the qregs specified in this operator.
+        For each defined argument in self.qregs:
+            (1) First get register from named_qregs,
+            (2) If not available get register from qregs
+            (3) if not available get register from extra_named_qregs
+        All inputs are size checked.
+        :param qregs: ordered sequence of qregs
+        :param named_qregs: dict of qregs
+        :param extra_named_qregs: dict of qregs
+        :return: list of qregs corresponding to the required quantum arguments of this operator
         """
 
         # Iterator over positional qregs
@@ -70,7 +81,14 @@ class QuantumOperator(ABC):
             # Try to get register from the following in order:
             #   (1) named qregs
             #   (2) positional qregs
-            qreg = named_qregs.get(expected_qreg.name, next(qregs_iter, None))
+            #   (3) qreg with the same name from the circuit provided
+            qreg = named_qregs.get(
+                expected_qreg.name,
+                next(
+                    qregs_iter,
+                    extra_named_qregs.get(expected_qreg.name),
+                ),
+            )
 
             # Register not provided
             if qreg is None:
@@ -95,9 +113,42 @@ class QuantumOperator(ABC):
 
         return parsed_qregs
 
+    def _parse_input(
+            self,
+            circuit: typing.Optional[qiskit.QuantumCircuit] = None,
+            qregs: typing.Optional[typing.Sequence[QuantumRegisterType]] = None,
+            named_qregs: typing.Optional[typing.Dict[str, QuantumRegisterType]] = None,
+    ) -> (qiskit.QuantumCircuit, typing.List[QuantumRegisterType]):
+        """
+        Parse input qregs for get_circuit()
+        :param circuit: circuit to append the operator to.
+                        If not provided, a new circuit will be constructed.
+        :param qregs: positional input qregs
+        :param named_qregs: named input qregs
+        :return: dict of quantum register segments
+        """
+
+        if qregs is None:
+            qregs = []
+        if named_qregs is None:
+            named_qregs = {}
+
+        if circuit is None:
+            named_qregs_from_circuit = self.named_qregs
+            circuit = qiskit.QuantumCircuit(name=self.name)
+        else:
+            named_qregs_from_circuit = {qreg.name: qreg for qreg in circuit.qregs}
+
+        parsed_qregs = self._parse_input_qregs(qregs, named_qregs, named_qregs_from_circuit)
+
+        add_registers_to_circuit(circuit, *parsed_qregs)
+
+        return circuit, parsed_qregs
+
     def _get_internal_circuit(self) -> qiskit.QuantumCircuit:
         if self._circuit is None:
-            self._build_internal_circuit()
+            circuit = self._build_internal_circuit()
+            self._set_internal_circuit(circuit)
         return self._circuit
 
     def _set_internal_circuit(self, circuit) -> None:
@@ -134,6 +185,7 @@ class QuantumOperator(ABC):
             self,
             circuit: typing.Optional[qiskit.QuantumCircuit] = None,
             qregs: typing.Optional[typing.Sequence[QuantumRegisterType]] = None,
+            named_qregs: typing.Optional[typing.Dict[str, QuantumRegisterType]] = None,
             inv: typing.Optional[bool] = False,
     ) -> qiskit.QuantumCircuit:
         """
@@ -142,25 +194,12 @@ class QuantumOperator(ABC):
                         If not provided, a new circuit will be constructed.
         :param qregs: (Optional) quantum registers to apply this operator to.
                       If not provided, registers from the internal circuit will be used.
+        :param named_qregs:
         :param inv:  (bool, Optional) invert the operator
         :return: quantum circuit
         """
 
-        # No register provided
-        if qregs is None:
-            # No circuit provided either
-            if circuit is None:
-                # Construct new circuit with internal registers
-                circuit = qiskit.QuantumCircuit(*self.qregs, name=self.name)
-            # Use registers from the provided / constructed circuit
-            qregs = circuit.qregs
-        # No circuit provided but register is provided
-        elif circuit is None:
-            # Create new circuit with provided registers
-            circuit = create_circuit(*qregs)
-        # Both circuit and registers are provided
-        else:
-            add_registers_to_circuit(circuit, *qregs)
+        circuit, qregs = self._parse_input(circuit, qregs, named_qregs)
 
         # Chain qregs into list of qubits
         # Note that this may be a subset of circuit.qubits when both circuit and qregs are provided
@@ -191,8 +230,7 @@ class QuantumOperator(ABC):
             *qregs: typing.Union[QuantumRegisterType, qiskit.circuit.Qubit],
             **named_qregs: typing.Union[QuantumRegisterType, qiskit.circuit.Qubit],
     ) -> qiskit.QuantumCircuit:
-        _qregs = self._parse_input_qregs(*qregs, **named_qregs)
-        return self.get_circuit(circuit, qregs=_qregs)
+        return self.get_circuit(circuit, qregs, named_qregs)
 
     def apply_inverse(
             self,
@@ -200,8 +238,7 @@ class QuantumOperator(ABC):
             *qregs: typing.Union[QuantumRegisterType, qiskit.circuit.Qubit],
             **named_qregs: typing.Union[QuantumRegisterType, qiskit.circuit.Qubit],
     ) -> qiskit.QuantumCircuit:
-        _qregs = self._parse_input_qregs(*qregs, **named_qregs)
-        return self.get_circuit(circuit, qregs=_qregs, inv=True)
+        return self.get_circuit(circuit, qregs, named_qregs, inv=True)
 
     def __call__(
             self,

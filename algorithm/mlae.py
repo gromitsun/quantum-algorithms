@@ -5,7 +5,7 @@ import scipy.optimize
 import qiskit
 
 from algorithm.quantum_operator import QuantumOperator, create_ancillas_for
-from algorithm.grover import BooleanOracle, GroverIterate
+from algorithm.grover import BooleanOracle
 from utils.qiskit_utils import create_register, create_circuit, get_counts
 
 
@@ -72,32 +72,18 @@ class QOperator(QuantumOperator):
         circuit.x(output_reg)
 
         # A^dag
-        self.a_op.apply_inverse(circuit, state=state_reg, output=output_reg, ancilla=ancilla_reg)
+        self.a_op.apply_inverse(circuit)
         # Reflection on source state
-        self.rs_op(circuit, state=state_reg, output=output_reg, ancilla=ancilla_reg)
+        self.rs_op(circuit)
         # A
-        self.a_op(circuit, state=state_reg, output=output_reg, ancilla=ancilla_reg)
-
-        # output_reg = create_register(1, name='output')
-        #
-        # circuit = create_circuit(output_reg, name=self.name)
-        # # Add pi phase to states with output qubit = |0>
-        # circuit.x(output_reg)
-        # circuit.u1(np.pi, output_reg)
-        # circuit.x(output_reg)
-        #
-        # oracle = QuantumOperator.create(circuit, name='oracle')
-        #
-        # circuit = GroverIterate(a_op=self._a_op, rs_op=self._rs_op, oracle=oracle).get_circuit()
-
-        self._set_internal_circuit(circuit)
+        self.a_op(circuit)
 
         return circuit
 
 
 class MLAE(QuantumOperator):
     """
-    Amplitude estimation using phase estimation
+    Maximum Likelihood Amplitude Estimation (MLAE)
     """
 
     def __init__(
@@ -124,8 +110,6 @@ class MLAE(QuantumOperator):
         # apply controlled-Q operator
         for _ in range(self.num_q_applications):
             self._q_op(circuit, state=state_reg, output=output_reg, ancilla=ancilla_reg)
-
-        self._set_internal_circuit(circuit)
 
         return circuit
 

@@ -7,7 +7,7 @@ import numpy as np
 import qiskit
 import qiskit.aqua.circuits
 
-from algorithm.quantum_operator import QuantumOperator, ControlledOperator
+from algorithm.quantum_operator import QuantumOperator, ControlledOperator, create_ancillas_for
 from utils.common import state_to_sv, get_basis_states, BinarySequenceType
 from utils.qiskit_utils import create_circuit, create_register, add_registers_to_circuit
 
@@ -39,10 +39,14 @@ class InitializeSourceOperator(QuantumOperator):
         return self._state_vector
 
     def _build_internal_circuit(self) -> qiskit.QuantumCircuit:
-        # Construct source state from all zero state
-        circuit = qiskit.aqua.circuits.StateVectorCircuit(self.state_vector).construct_circuit()
+        num_qubits = int(round(math.log2(len(self.state_vector))))
+        qreg = qiskit.QuantumRegister(num_qubits, name='state')
+        circuit = qiskit.QuantumCircuit(qreg, name=self.name)
 
-        self._set_internal_circuit(circuit)
+        # Construct source state from all zero state
+        circuit = qiskit.aqua.circuits.StateVectorCircuit(
+            self.state_vector
+        ).construct_circuit(circuit, qreg)
 
         return circuit
 
@@ -88,21 +92,12 @@ class DiffusionOperator(QuantumOperator):
         return self._source_state_vector
 
     def _build_internal_circuit(self) -> qiskit.QuantumCircuit:
-        num_qubits = int(round(math.log2(len(self.state_vector))))
-        qreg = qiskit.QuantumRegister(num_qubits, name='state')
-        circuit = qiskit.QuantumCircuit(qreg, name=self.name)
 
         # Reverse init source op
-        circuit = qiskit.aqua.circuits.StateVectorCircuit(
-            self.source_state_vector
-        ).construct_circuit(circuit, qreg).inverse()
+        circuit = InitializeSourceOperator(state_vector=self.source_state_vector).get_circuit().inverse()
 
         # Prepare desired state specified by sv
-        circuit = qiskit.aqua.circuits.StateVectorCircuit(
-            self.state_vector
-        ).construct_circuit(circuit, qreg)
-
-        self._set_internal_circuit(circuit)
+        InitializeSourceOperator(state_vector=self.state_vector).apply(circuit)
 
         return circuit
 
@@ -188,8 +183,6 @@ class PhaseOracle(Oracle):
             if not bit:
                 circuit.x(q)
 
-        self._set_internal_circuit(circuit)
-
         return circuit
 
 
@@ -224,8 +217,6 @@ class BooleanOracle(Oracle):
         if self.reverse:
             circuit.x(output_reg)
 
-        self._set_internal_circuit(circuit)
-
         return circuit
 
     def to_phase_oracle(self, num_controls: int = 0) -> PhaseOracle:
@@ -253,7 +244,7 @@ class GroverIterate(ControlledOperator):
     def __init__(
             self,
             a_op: QuantumOperator,
-            rs_op: ControlledOperator,
+            rs_op: QuantumOperator,
             oracle: Oracle,
             name: typing.Optional[str] = 'GroverIterate',
     ):
@@ -268,17 +259,14 @@ class GroverIterate(ControlledOperator):
     def _build_internal_circuit(self) -> qiskit.QuantumCircuit:
         control_reg = create_register(self.num_control_qubits, name='control')
         state_reg = create_register(self._oracle.num_state_qubits, name='state')
-        output_reg = self._oracle.get_register('output') or []
-        num_ancillas = max(self._oracle.num_ancillas, self._a_op.num_ancillas, self._rs_op.num_ancillas)
-        ancilla_reg = create_register(num_ancillas, name='ancilla', reg_type='ancilla')
+        output_reg = self._oracle.get_register('output', [])
+        ancilla_reg = create_ancillas_for(self._oracle, self._a_op, self._rs_op)
         circuit = create_circuit(control_reg, state_reg, output_reg, ancilla_reg, name=self.name)
 
         self._oracle(circuit, control=control_reg, state=state_reg, output=output_reg, ancilla=ancilla_reg)
         self._a_op.apply_inverse(circuit, state_reg, ancilla=ancilla_reg)
         self._rs_op(circuit, control=control_reg, state=state_reg, ancilla=ancilla_reg)
         self._a_op(circuit, state_reg, ancilla=ancilla_reg)
-
-        self._set_internal_circuit(circuit)
 
         return circuit
 
