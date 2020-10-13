@@ -268,11 +268,12 @@ class GroverIterate(ControlledOperator):
     def _build_internal_circuit(self) -> qiskit.QuantumCircuit:
         control_reg = create_register(self.num_control_qubits, name='control')
         state_reg = create_register(self._oracle.num_state_qubits, name='state')
+        output_reg = self._oracle.get_register('output') or []
         num_ancillas = max(self._oracle.num_ancillas, self._a_op.num_ancillas, self._rs_op.num_ancillas)
         ancilla_reg = create_register(num_ancillas, name='ancilla', reg_type='ancilla')
-        circuit = create_circuit(control_reg, state_reg, ancilla_reg, name=self.name)
+        circuit = create_circuit(control_reg, state_reg, output_reg, ancilla_reg, name=self.name)
 
-        self._oracle(circuit, control=control_reg, state=state_reg, ancilla=ancilla_reg)
+        self._oracle(circuit, control=control_reg, state=state_reg, output=output_reg, ancilla=ancilla_reg)
         self._a_op.apply_inverse(circuit, state_reg, ancilla=ancilla_reg)
         self._rs_op(circuit, control=control_reg, state=state_reg, ancilla=ancilla_reg)
         self._a_op(circuit, state_reg, ancilla=ancilla_reg)
