@@ -5,7 +5,8 @@ from abc import ABC
 
 import qiskit
 
-from utils.qiskit_utils import QuantumRegisterType, create_circuit, add_registers_to_circuit, split_register
+from utils.qiskit_utils import QuantumRegisterType, create_circuit, create_register, \
+    add_registers_to_circuit, split_register
 
 
 class QuantumOperator(ABC):
@@ -111,16 +112,23 @@ class QuantumOperator(ABC):
     def _build_internal_circuit(self) -> qiskit.QuantumCircuit:
         raise NotImplementedError("Abstract class")
 
+    @classmethod
+    def create(cls, circuit: qiskit.QuantumCircuit, name: typing.Optional[str] = None):
+        op = cls(name=name)
+        op._set_internal_circuit(circuit)
+        return op
+
     def split_register(self, *qregs):
         return split_register(registers=qregs, sizes=[qreg.size for qreg in self.qregs])
 
     def draw(self, *args, **kwargs):
         return self._get_internal_circuit().draw(*args, **kwargs)
 
-    def get_register(self, name) -> typing.Optional[QuantumRegisterType]:
+    def get_register(self, name: str, default: typing.Any = None) -> typing.Union[QuantumRegisterType, typing.Any]:
         for qreg in self.qregs:
             if qreg.name == name:
                 return qreg
+        return default
 
     def get_circuit(
             self,
@@ -224,3 +232,8 @@ class ControlledOperator(QuantumOperator, ABC):
     @property
     def num_target_qubits(self):
         return self.num_main_qubits - self.num_control_qubits
+
+
+def create_ancillas_for(*operators: QuantumOperator, name: typing.Optional[str] = 'ancilla'):
+    num_ancillas = max(op.num_ancillas for op in operators)
+    return create_register(num_ancillas, name=name, reg_type='ancilla')
