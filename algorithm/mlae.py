@@ -36,8 +36,6 @@ class AOperator(QuantumOperator):
         self.state_loading_op(circuit, state=state_reg, ancilla=ancilla_reg)
         self.oracle(circuit, state=state_reg, output=output_reg, ancilla=ancilla_reg)
 
-        self._set_internal_circuit(circuit)
-
         return circuit
 
 
@@ -107,7 +105,7 @@ class MLAE(QuantumOperator):
         # apply A operator
         self._a_op(circuit, state=state_reg, output=output_reg, ancilla=ancilla_reg)
 
-        # apply controlled-Q operator
+        # apply Q operator
         for _ in range(self.num_q_applications):
             self._q_op(circuit, state=state_reg, output=output_reg, ancilla=ancilla_reg)
 
