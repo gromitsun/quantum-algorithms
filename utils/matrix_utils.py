@@ -29,6 +29,12 @@ ident = np.array([
 ])
 
 
+hadamard = np.array([
+    [1, 1],
+    [1, -1]
+]) / np.sqrt(2)
+
+
 def ident_n(n: int) -> np.array:
     """
     n-qubit identity matrix
@@ -62,6 +68,18 @@ def rz(theta: float) -> np.array:
 
 def u1(theta: float) -> np.array:
     return np.diag([1, np.exp(1j * theta)])
+
+
+######################################
+# Two-qubit gates
+######################################
+
+controlled_x = np.array([
+    [1, 0, 0, 0],
+    [0, 1, 0, 0],
+    [0, 0, 0, 1],
+    [0, 0, 1, 0],
+])
 
 
 ######################################
