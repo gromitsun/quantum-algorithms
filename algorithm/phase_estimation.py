@@ -47,12 +47,11 @@ def phase_estimate(
     list(map(circuit.h, qreg_out))
 
     # apply controlled-U
-    for k, control in enumerate(qreg_out):
+    for k, control in enumerate(reversed(qreg_out)):
         c_op(circuit, 2 ** k, control, qreg_ancilla)
 
-    # reverse qubits
+    # reverse qubits -- only needed if not using reversed(qreg_out) when applying controlled-U above
     # swap_qubits(qc, qout)
-    qreg_out = qreg_out[::-1]
 
     # apply inverse QFT
     qft(circuit, qreg_out, do_swaps=False, inverse=True)
