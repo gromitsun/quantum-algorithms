@@ -147,7 +147,7 @@ def mcu(u: np.array, n: int, i: int = -1) -> np.array:
     return _mcu_recursive(u, n, i)
 
 
-def exp_real(u: np.array, t: typing.SupportsFloat) -> np.array:
+def exp_real(u: np.array, t: float) -> np.array:
     """
     :param u: unitary matrix
     :param t: time -- real number
@@ -186,7 +186,12 @@ def partial_trace(
 
 
 # --------------- QFT --------------- #
-def qft_matrix(n):
+def qft_matrix(n: int) -> np.array:
+    """
+    Return matrix for a QFT operation
+    :param n: Number of qubits
+    :return: QFT operator matrix
+    """
     nn = 2 ** n
     u = np.array([
         [np.exp(2j * np.pi * i * k / nn) for i in range(nn)]
@@ -195,7 +200,13 @@ def qft_matrix(n):
     return u
 
 
-def qft_shift_matrix(n, shift):
+def qft_shift_matrix(n: int, shift: int) -> np.array:
+    """
+    Return matrix for shift in Fourier space
+    :param n: Number of qubits
+    :param shift: Shift in real space
+    :return: matrix
+    """
     u = 1
     for k in range(n):
         u = np.kron(u1(2 * np.pi * 2 ** (k - n) * shift), u)
